@@ -1,5 +1,14 @@
 import { useState, useEffect } from "react";
 import Editor from "@monaco-editor/react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
 import { useFlowStore } from "../store/flowStore";
 
 interface CodeEditorModalProps {
@@ -13,7 +22,7 @@ export function CodeEditorModal({
   code,
   onSave,
 }: CodeEditorModalProps) {
-  const { closeEditor } = useFlowStore();
+  const { isEditorOpen, closeEditor } = useFlowStore();
   const [localCode, setLocalCode] = useState(code);
 
   useEffect(() => {
@@ -25,48 +34,27 @@ export function CodeEditorModal({
     closeEditor();
   };
 
-  const handleCancel = () => {
-    closeEditor();
-  };
-
-  const handleBackdropClick = (e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      closeEditor();
-    }
-  };
-
   return (
-    <div
-      className="fixed inset-0 bg-black/70 flex items-center justify-center z-[1000]"
-      onClick={handleBackdropClick}
-    >
-      <div className="bg-zinc-900 rounded-xl w-[90%] max-w-[800px] max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-700">
-          <h2 className="m-0 text-lg font-semibold text-white">
-            Edit: {nodeLabel}
-          </h2>
-          <button
-            className="bg-transparent border-none text-zinc-400 text-2xl cursor-pointer p-0 leading-none hover:text-white"
-            onClick={handleCancel}
-          >
-            &times;
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-hidden flex flex-col">
-          <div className="px-5 py-3 bg-zinc-800 text-sm text-zinc-400">
+    <Dialog open={isEditorOpen} onOpenChange={(open) => !open && closeEditor()}>
+      <DialogContent className="max-w-4xl h-[80vh] flex flex-col gap-0 p-0 bg-zinc-900 border-zinc-700">
+        <DialogHeader className="px-6 py-4 border-b border-zinc-700">
+          <DialogTitle className="text-white">Edit: {nodeLabel}</DialogTitle>
+          <DialogDescription className="text-zinc-400">
             Write JavaScript code. Use{" "}
-            <code className="bg-zinc-700 px-1.5 py-0.5 rounded font-mono">
+            <code className="bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-xs">
               input
             </code>{" "}
             to access data from the previous node. Use{" "}
-            <code className="bg-zinc-700 px-1.5 py-0.5 rounded font-mono">
+            <code className="bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-xs">
               return
             </code>{" "}
             to pass data to the next node.
-          </div>
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="flex-1 overflow-hidden">
           <Editor
-            height="400px"
+            height="100%"
             defaultLanguage="javascript"
             value={localCode}
             onChange={(value) => setLocalCode(value || "")}
@@ -83,21 +71,13 @@ export function CodeEditorModal({
           />
         </div>
 
-        <div className="flex justify-end gap-2.5 px-5 py-4 border-t border-zinc-700">
-          <button
-            className="px-5 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors bg-transparent border border-zinc-500 text-white hover:bg-zinc-800"
-            onClick={handleCancel}
-          >
+        <DialogFooter className="px-6 py-4 border-t border-zinc-700">
+          <Button variant="outline" onClick={closeEditor}>
             Cancel
-          </button>
-          <button
-            className="px-5 py-2 rounded-md text-sm font-medium cursor-pointer transition-colors bg-blue-600 border-none text-white hover:bg-blue-700"
-            onClick={handleSave}
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
+          </Button>
+          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

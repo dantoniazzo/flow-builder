@@ -33,10 +33,30 @@ export interface LiveEdge extends JsonObject {
   targetHandle?: string | null;
 }
 
+// Execution history types
+export interface LiveExecutionResult extends JsonObject {
+  nodeId: string;
+  nodeLabel: string;
+  result?: JsonObject | string | number | boolean | null;
+  error?: string;
+}
+
+export interface LiveExecutionRecord extends JsonObject {
+  id: string;
+  startNodeId: string;
+  startNodeLabel: string;
+  startedAt: string; // ISO string for JSON compatibility
+  completedAt?: string;
+  status: "running" | "success" | "error";
+  nodesExecuted: number;
+  results: LiveExecutionResult[];
+}
+
 // Define the storage schema for our room
 type Storage = {
   nodes: LiveMap<string, LiveNode>;
   edges: LiveList<LiveEdge>;
+  executionHistory: LiveList<LiveExecutionRecord>;
 };
 
 // Define presence for showing collaborator cursors

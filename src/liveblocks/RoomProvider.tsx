@@ -1,6 +1,6 @@
 import { type ReactNode, useMemo } from "react";
 import { LiveList, LiveMap } from "@liveblocks/client";
-import { RoomProvider as LiveblocksRoomProvider, type LiveNode, type LiveEdge } from "./liveblocks.config";
+import { RoomProvider as LiveblocksRoomProvider, type LiveNode, type LiveEdge, type LiveExecutionRecord } from "./liveblocks.config";
 
 interface Props {
   roomId: string;
@@ -62,6 +62,7 @@ export function RoomProviderWrapper({ roomId, children }: Props) {
         ],
       ]),
       edges: new LiveList<LiveEdge>([{ id: "e1-2-bottom-top", source: "n1", target: "n2", sourceHandle: "bottom", targetHandle: "top" }]),
+      executionHistory: new LiveList<LiveExecutionRecord>([]),
     }),
     []
   );

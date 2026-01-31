@@ -4,6 +4,7 @@ import {
   Background,
   Controls,
   ConnectionMode,
+  SelectionMode,
   type NodeTypes,
   type OnNodesChange,
   type OnEdgesChange,
@@ -48,6 +49,10 @@ const nodeTypes: NodeTypes = {
 export function Flow() {
   const { isEditorOpen, selectedNodeId } = useFlowStore();
 
+  // Pan mode state (hand tool)
+  const [isPanMode, setIsPanMode] = useState(false);
+  const [isSpacePressed, setIsSpacePressed] = useState(false);
+
   // Get data from LiveBlocks storage
   const liveNodes = useStorage((root) => root.nodes);
   const liveEdges = useStorage((root) => root.edges);
@@ -55,6 +60,33 @@ export function Flow() {
   // Convert LiveBlocks data to ReactFlow format
   const [nodes, setNodes] = useState<CodeNodeType[]>([]);
   const [edges, setEdges] = useState<FlowEdge[]>([]);
+
+  // Handle space key for temporary pan mode
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.code === "Space" && !e.repeat && !isEditorOpen) {
+        e.preventDefault();
+        setIsSpacePressed(true);
+      }
+    };
+
+    const handleKeyUp = (e: KeyboardEvent) => {
+      if (e.code === "Space") {
+        setIsSpacePressed(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+    };
+  }, [isEditorOpen]);
+
+  // Combined pan mode (either hand tool or space key)
+  const activePanMode = isPanMode || isSpacePressed;
 
   // Sync LiveBlocks storage to local state
   // Note: This pattern is intentional for syncing from external LiveBlocks storage
@@ -161,6 +193,56 @@ export function Flow() {
     }
   }, []);
 
+  // Execution history mutations
+  const addExecutionRecord = useMutation(
+    ({ storage }, record: {
+      id: string;
+      startNodeId: string;
+      startNodeLabel: string;
+      startedAt: string;
+      status: "running" | "success" | "error";
+      nodesExecuted: number;
+      results: Array<{ nodeId: string; nodeLabel: string; result?: unknown; error?: string }>;
+    }) => {
+      const history = storage.get("executionHistory");
+      history.insert({
+        ...record,
+        results: record.results.map(r => ({
+          ...r,
+          result: r.result !== undefined ? JSON.parse(JSON.stringify(r.result)) : undefined,
+        })),
+      }, 0);
+    },
+    []
+  );
+
+  const updateExecutionRecord = useMutation(
+    ({ storage }, id: string, updates: {
+      completedAt?: string;
+      status?: "running" | "success" | "error";
+      nodesExecuted?: number;
+      results?: Array<{ nodeId: string; nodeLabel: string; result?: unknown; error?: string }>;
+    }) => {
+      const history = storage.get("executionHistory");
+      const historyArray = Array.from(history);
+      const index = historyArray.findIndex((e) => e.id === id);
+      if (index !== -1) {
+        const existing = historyArray[index];
+        history.set(index, {
+          ...existing,
+          ...updates,
+          results: updates.results
+            ? updates.results.map(r => ({
+                ...r,
+                result: r.result !== undefined ? JSON.parse(JSON.stringify(r.result)) : undefined,
+              }))
+            : existing.results,
+        });
+      }
+    },
+    []
+  );
+
   // Handle node changes (position, selection, deletion)
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
@@ -208,11 +290,33 @@ export function Flow() {
   // Execute a flow starting from a specific node
   const handleExecuteFlow = useCallback(
     async (startNodeId: string) => {
-      await executeFlow(startNodeId, nodes, edges, (nodeId, updates) => {
+      const startNode = nodes.find((n) => n.id === startNodeId);
+      const executionId = `exec-${Date.now()}`;
+
+      // Create execution record in LiveBlocks
+      addExecutionRecord({
+        id: executionId,
+        startNodeId,
+        startNodeLabel: startNode?.data.label || startNodeId,
+        startedAt: new Date().toISOString(),
+        status: "running",
+        nodesExecuted: 0,
+        results: [],
+      });
+
+      const result = await executeFlow(startNodeId, nodes, edges, (nodeId, updates) => {
         updateNodeData(nodeId, updates);
       });
+
+      // Update execution record with results in LiveBlocks
+      updateExecutionRecord(executionId, {
+        completedAt: new Date().toISOString(),
+        status: result.success ? "success" : "error",
+        nodesExecuted: result.results.length,
+        results: result.results,
+      });
     },
-    [nodes, edges, updateNodeData]
+    [nodes, edges, updateNodeData, addExecutionRecord, updateExecutionRecord]
   );
 
   // Get selected node for editor
@@ -247,8 +351,12 @@ export function Flow() {
   );
 
   return (
-    <div className="w-screen h-screen relative">
-      <Toolbar onAddNode={addNode} />
+    <div className={`w-screen h-screen relative ${activePanMode ? "cursor-grab active:cursor-grabbing" : ""}`}>
+      <Toolbar
+        onAddNode={addNode}
+        isPanMode={isPanMode}
+        onTogglePanMode={() => setIsPanMode(!isPanMode)}
+      />
       <ReactFlow
         nodes={nodesWithFlowProps}
         edges={edges}
@@ -262,6 +370,16 @@ export function Flow() {
         snapToGrid
         snapGrid={[20, 20]}
         connectionMode={ConnectionMode.Loose}
+        // Touchpad: two-finger pan, pinch to zoom
+        panOnScroll={true}
+        zoomOnScroll={false}
+        zoomOnPinch={true}
+        // Mouse: drag to select (unless in pan mode)
+        panOnDrag={activePanMode}
+        selectionOnDrag={!activePanMode}
+        selectionMode={SelectionMode.Partial}
+        // Selection box styling
+        selectionKeyCode={null}
       >
         <Background gap={20} />
         <Controls />

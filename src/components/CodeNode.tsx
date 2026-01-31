@@ -2,6 +2,7 @@ import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
 import type { LiveNodeData } from "../liveblocks/liveblocks.config";
 import { useFlowStore } from "../store/flowStore";
+import { Button } from "./ui/button";
 
 interface CodeNodeProps {
   id: string;
@@ -11,7 +12,8 @@ interface CodeNodeProps {
   onExecute: () => void;
 }
 
-const handleClass = "!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500";
+const handleClass =
+  "!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500";
 
 function CodeNodeComponent({
   id,
@@ -33,10 +35,12 @@ function CodeNodeComponent({
 
   // Determine border color based on status
   const getBorderClass = () => {
-    if (data.isExecuting) return "border-orange-500 shadow-[0_0_10px_rgba(255,165,0,0.5)]";
+    if (data.isExecuting)
+      return "border-orange-500 shadow-[0_0_10px_rgba(255,165,0,0.5)]";
     if (data.error) return "border-red-500";
     if (data.lastResult !== undefined) return "border-green-500";
-    if (selected) return "border-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.3)]";
+    if (selected)
+      return "border-blue-500 shadow-[0_0_0_2px_rgba(59,130,246,0.3)]";
     return "border-zinc-700 hover:border-zinc-500";
   };
 
@@ -46,16 +50,36 @@ function CodeNodeComponent({
       onDoubleClick={handleDoubleClick}
     >
       {/* Top handle */}
-      <Handle type="source" position={Position.Top} id="top" className={handleClass} />
+      <Handle
+        type="source"
+        position={Position.Top}
+        id="top"
+        className={handleClass}
+      />
 
       {/* Left handle */}
-      <Handle type="source" position={Position.Left} id="left" className={handleClass} />
+      <Handle
+        type="source"
+        position={Position.Left}
+        id="left"
+        className={handleClass}
+      />
 
       {/* Right handle */}
-      <Handle type="source" position={Position.Right} id="right" className={handleClass} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
+        className={handleClass}
+      />
 
       {/* Bottom handle */}
-      <Handle type="source" position={Position.Bottom} id="bottom" className={handleClass} />
+      <Handle
+        type="source"
+        position={Position.Bottom}
+        id="bottom"
+        className={handleClass}
+      />
 
       <div className="flex items-center justify-between mb-2">
         <span className="font-semibold text-sm text-white">{data.label}</span>
@@ -81,13 +105,13 @@ function CodeNodeComponent({
       )}
 
       {isStartNode && (
-        <button
-          className="w-full mt-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-zinc-600 disabled:cursor-not-allowed border-none rounded text-white text-xs font-medium cursor-pointer transition-colors"
+        <Button
+          className="w-full mt-2"
           onClick={handleExecuteClick}
           disabled={data.isExecuting}
         >
           {data.isExecuting ? "Running..." : "Execute Flow"}
-        </button>
+        </Button>
       )}
     </div>
   );

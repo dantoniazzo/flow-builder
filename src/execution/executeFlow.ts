@@ -1,10 +1,22 @@
-import type { CodeNode, FlowEdge, ExecutionResult } from "../types";
+import type { CodeNode, FlowEdge } from "../types";
 import type { LiveNodeData } from "../liveblocks/liveblocks.config";
 
 type UpdateNodeCallback = (
   nodeId: string,
   updates: Partial<LiveNodeData>
 ) => void;
+
+export interface NodeExecutionResult {
+  nodeId: string;
+  nodeLabel: string;
+  result?: unknown;
+  error?: string;
+}
+
+export interface FlowExecutionResult {
+  success: boolean;
+  results: NodeExecutionResult[];
+}
 
 export async function executeNode(
   code: string,
@@ -32,9 +44,10 @@ export async function executeFlow(
   nodes: CodeNode[],
   edges: FlowEdge[],
   updateNode: UpdateNodeCallback
-): Promise<ExecutionResult[]> {
-  const results: ExecutionResult[] = [];
+): Promise<FlowExecutionResult> {
+  const results: NodeExecutionResult[] = [];
   const visited = new Set<string>();
+  let hasError = false;
 
   // Build adjacency list for traversal
   const adjacency = new Map<string, string[]>();
@@ -71,10 +84,11 @@ export async function executeFlow(
       // Execute the node's code
       result = await executeNode(node.data.code, input);
 
-      results.push({ nodeId, result });
+      results.push({ nodeId, nodeLabel: node.data.label, result });
     } catch (e) {
       error = e instanceof Error ? e.message : String(e);
-      results.push({ nodeId, error });
+      results.push({ nodeId, nodeLabel: node.data.label, error });
+      hasError = true;
     }
 
     // Serialize the result for storage (must be JSON-compatible)
@@ -100,7 +114,10 @@ export async function executeFlow(
   // Start execution from the start node
   await executeNodeAndChildren(startNodeId, undefined);
 
-  return results;
+  return {
+    success: !hasError,
+    results,
+  };
 }
 
 // Helper to find start nodes (nodes with no incoming edges)
