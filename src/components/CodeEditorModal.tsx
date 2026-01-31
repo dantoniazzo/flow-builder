@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-ignore - internal Monaco API
+import * as actions from "monaco-editor/esm/vs/platform/actions/common/actions";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +15,35 @@ import {
 import { Button } from "@/components/ui/button";
 import { useFlowStore } from "../store/flowStore";
 import { useIsMobile } from "../shared/lib/useIsMobile";
+
+// Remove built-in paste from context menu (runs once)
+let pasteMenuRemoved = false;
+function removeBuiltInPaste() {
+  if (pasteMenuRemoved) return;
+  pasteMenuRemoved = true;
+
+  const menus = actions.MenuRegistry._menuItems;
+  const contextMenuEntry = [...menus].find(
+    (entry: [{ _debugName: string }, unknown]) => entry[0]._debugName === "EditorContext"
+  );
+  if (!contextMenuEntry) return;
+
+  const contextMenuLinks = contextMenuEntry[1];
+  const removableIds = ["editor.action.clipboardPasteAction"];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let node = (contextMenuLinks as any)._first;
+  while (node) {
+    const next = node.next;
+    if (removableIds.includes(node.element?.command?.id)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (contextMenuLinks as any)._remove(node);
+    }
+    node = next;
+  }
+}
+
+removeBuiltInPaste();
 
 interface CodeEditorModalProps {
   nodeLabel: string;
@@ -33,41 +65,11 @@ export function CodeEditorModal({
     setLocalCode(code);
   }, [code]);
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
-    editorRef.current = editor;
-
-    // Add custom paste action that uses Clipboard API
-    editor.addAction({
-      id: "custom-paste",
-      label: "Paste",
-      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV],
-      contextMenuGroupId: "9_cutcopypaste",
-      contextMenuOrder: 3,
-      run: async (ed) => {
-        try {
-          const text = await navigator.clipboard.readText();
-          const selection = ed.getSelection();
-          if (selection) {
-            ed.executeEdits("paste", [
-              {
-                range: selection,
-                text: text,
-                forceMoveMarkers: true,
-              },
-            ]);
-          }
-        } catch (err) {
-          console.error("Failed to paste:", err);
-        }
-      },
-    });
-  };
-
-  const handlePaste = async () => {
-    if (!editorRef.current) return;
+  const pasteFromClipboard = async (
+    editor: Pick<Monaco.editor.ICodeEditor, "getSelection" | "executeEdits">
+  ) => {
     try {
       const text = await navigator.clipboard.readText();
-      const editor = editorRef.current;
       const selection = editor.getSelection();
       if (selection) {
         editor.executeEdits("paste", [
@@ -77,11 +79,35 @@ export function CodeEditorModal({
             forceMoveMarkers: true,
           },
         ]);
-        editor.focus();
       }
     } catch (err) {
       console.error("Failed to paste:", err);
     }
+  };
+
+  const handleEditorMount: OnMount = (editor, monaco) => {
+    editorRef.current = editor;
+
+    // Override the built-in paste command to use Clipboard API
+    editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
+      pasteFromClipboard(editor);
+    });
+
+    // Add custom paste action with keybinding indicator
+    editor.addAction({
+      id: "custom.clipboardPasteAction",
+      label: "Paste",
+      keybindings: [monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV],
+      contextMenuGroupId: "9_cutcopypaste",
+      contextMenuOrder: 3,
+      run: (ed) => pasteFromClipboard(ed),
+    });
+  };
+
+  const handlePaste = async () => {
+    if (!editorRef.current) return;
+    await pasteFromClipboard(editorRef.current);
+    editorRef.current.focus();
   };
 
   const handleSave = () => {
