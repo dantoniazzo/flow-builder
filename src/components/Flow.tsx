@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo, useEffect, useState, useRef } from "react";
 import {
   ReactFlow,
   Background,
@@ -17,16 +17,25 @@ import "@xyflow/react/dist/style.css";
 import { CodeNode } from "./CodeNode";
 import { CodeEditorModal } from "./CodeEditorModal";
 import { Toolbar } from "./Toolbar";
+import { ChatInput } from "./ChatInput";
+import { ChatPanel } from "./ChatPanel";
+import { ApiKeyModal } from "./ApiKeyModal";
 import { useFlowStore } from "../store/flowStore";
+import { useChatStore } from "../store/chatStore";
 import {
   useStorage,
   useMutation,
   type LiveNode,
   type LiveNodeData,
+  type LiveChatMessage,
 } from "../liveblocks/liveblocks.config";
 import { executeFlow, isStartNode } from "../execution/executeFlow";
 import { useIsMobile } from "../shared/lib/useIsMobile";
+import { useAITools } from "../hooks/useAITools";
+import { AIService } from "../ai/aiService";
+import { OpenAIService } from "../ai/openaiService";
 import type { CodeNode as CodeNodeType, FlowEdge } from "../types";
+import type { ChatMessage } from "../types/ai";
 
 // Wrapper component that provides isStartNode and onExecute to CodeNode
 function CodeNodeWrapper(props: {
@@ -56,7 +65,65 @@ const nodeTypes: NodeTypes = {
 
 export function Flow() {
   const { isEditorOpen, selectedNodeId } = useFlowStore();
+  const {
+    isPanelOpen,
+    provider,
+    anthropicApiKey,
+    openaiApiKey,
+    setLoading,
+    setPanel,
+    togglePanel,
+  } = useChatStore();
   const isMobile = useIsMobile();
+
+  // Get chat messages from LiveBlocks
+  const liveChatMessages = useStorage((root) => root.chatMessages);
+  const messages: ChatMessage[] = liveChatMessages
+    ? (Array.from(liveChatMessages) as ChatMessage[])
+    : [];
+
+  // Add chat message mutation
+  const addChatMessage = useMutation(
+    ({ storage }, message: LiveChatMessage) => {
+      const chatMessages = storage.get("chatMessages");
+      chatMessages.push(message);
+    },
+    []
+  );
+
+  // Clear chat messages mutation
+  const clearChatMessages = useMutation(({ storage }) => {
+    const chatMessages = storage.get("chatMessages");
+    while (chatMessages.length > 0) {
+      chatMessages.delete(0);
+    }
+  }, []);
+
+  // AI Tools hook
+  const { executeTool, getWorkflowContext } = useAITools();
+
+  // AI Service instances (persisted across renders when keys change)
+  const anthropicServiceRef = useRef<AIService | null>(null);
+  const openaiServiceRef = useRef<OpenAIService | null>(null);
+
+  useEffect(() => {
+    if (anthropicApiKey) {
+      anthropicServiceRef.current = new AIService(anthropicApiKey);
+    } else {
+      anthropicServiceRef.current = null;
+    }
+  }, [anthropicApiKey]);
+
+  useEffect(() => {
+    if (openaiApiKey) {
+      openaiServiceRef.current = new OpenAIService(openaiApiKey);
+    } else {
+      openaiServiceRef.current = null;
+    }
+  }, [openaiApiKey]);
+
+  // API Key modal state
+  const [showApiKeyModal, setShowApiKeyModal] = useState(false);
 
   // Pan mode state (hand tool) - always true on mobile
   const [isPanMode, setIsPanMode] = useState(false);
@@ -433,6 +500,88 @@ export function Flow() {
     [selectedNodeId, updateNodeData],
   );
 
+  // Handle chat message submission
+  const handleChatSend = useCallback(
+    async (message: string) => {
+      const currentApiKey =
+        provider === "anthropic" ? anthropicApiKey : openaiApiKey;
+
+      if (!currentApiKey) {
+        setShowApiKeyModal(true);
+        return;
+      }
+
+      // Get the appropriate service
+      let service: AIService | OpenAIService | null = null;
+      if (provider === "anthropic") {
+        if (!anthropicServiceRef.current) {
+          anthropicServiceRef.current = new AIService(currentApiKey);
+        }
+        service = anthropicServiceRef.current;
+      } else {
+        if (!openaiServiceRef.current) {
+          openaiServiceRef.current = new OpenAIService(currentApiKey);
+        }
+        service = openaiServiceRef.current;
+      }
+
+      // Add user message to LiveBlocks
+      const userMessage: LiveChatMessage = {
+        id: `msg-${Date.now()}`,
+        role: "user",
+        content: message,
+        timestamp: new Date().toISOString(),
+      };
+      addChatMessage(userMessage);
+      setLoading(true);
+
+      try {
+        const workflowContext = getWorkflowContext();
+        const response = await service.chat(
+          message,
+          workflowContext,
+          executeTool
+        );
+
+        // Add assistant message to LiveBlocks
+        // Convert toolCalls to JSON-serializable format for LiveBlocks
+        const toolCalls = response.toolCalls.map((tc) => ({
+          name: tc.name,
+          input: JSON.parse(JSON.stringify(tc.input)),
+          result: tc.result !== undefined
+            ? JSON.parse(JSON.stringify(tc.result))
+            : undefined,
+        }));
+
+        const assistantMessage: LiveChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: "assistant",
+          content: response.content,
+          timestamp: new Date().toISOString(),
+          toolCalls: toolCalls.length > 0 ? toolCalls : undefined,
+        };
+        addChatMessage(assistantMessage);
+
+        // If there were tool calls, open the panel to show them
+        if (response.toolCalls.length > 0) {
+          setPanel(true);
+        }
+      } catch (error) {
+        // Add error message to LiveBlocks
+        const errorMessage: LiveChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: "assistant",
+          content: `Error: ${error instanceof Error ? error.message : "Something went wrong"}`,
+          timestamp: new Date().toISOString(),
+        };
+        addChatMessage(errorMessage);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [provider, anthropicApiKey, openaiApiKey, addChatMessage, setLoading, getWorkflowContext, executeTool, setPanel]
+  );
+
   return (
     <div
       className={`w-screen h-screen relative ${activePanMode ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -479,6 +628,71 @@ export function Flow() {
           onRename={handleRenameNode}
         />
       )}
+
+      {/* AI Chat Components */}
+      <ChatInput onSend={handleChatSend} />
+
+      {isPanelOpen && (
+        <ChatPanel
+          messages={messages}
+          onClose={() => setPanel(false)}
+          onClearMessages={clearChatMessages}
+        />
+      )}
+
+      <ApiKeyModal open={showApiKeyModal} onOpenChange={setShowApiKeyModal} />
+
+      {/* Chat history button - bottom right with animated border */}
+      <div
+        className={`chat-button-animated z-[100] cursor-pointer ${
+          isPanelOpen ? "active" : ""
+        }`}
+        onClick={togglePanel}
+        title="Chat history"
+      >
+        <div className="chat-button-animated-inner text-white">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+        </div>
+        {messages.length > 0 && !isPanelOpen && (
+          <span className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center z-10">
+            {messages.length > 99 ? "99+" : messages.length}
+          </span>
+        )}
+      </div>
+
+      {/* Settings button for API key - top right */}
+      <button
+        onClick={() => setShowApiKeyModal(true)}
+        className="absolute top-4 right-4 z-[100] p-2 bg-zinc-800 border border-zinc-700 rounded-md text-zinc-400 hover:text-white hover:bg-zinc-700 transition-colors"
+        title="AI Settings"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+          <circle cx="12" cy="12" r="3" />
+        </svg>
+      </button>
     </div>
   );
 }

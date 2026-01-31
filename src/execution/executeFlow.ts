@@ -22,9 +22,11 @@ export async function executeNode(
   code: string,
   input: unknown
 ): Promise<unknown> {
-  // Create a function from the code string
+  // Create an async function from the code string
+  // This allows top-level await in node code
   // The function receives 'input' as a parameter and can return a value
-  const fn = new Function(
+  const AsyncFunction = Object.getPrototypeOf(async function () {}).constructor;
+  const fn = new AsyncFunction(
     "input",
     `
     "use strict";
@@ -32,11 +34,8 @@ export async function executeNode(
   `
   );
 
-  // Execute the function with the input
-  const result = fn(input);
-
-  // Handle both sync and async results
-  return result instanceof Promise ? await result : result;
+  // Execute the async function with the input
+  return await fn(input);
 }
 
 export async function executeFlow(

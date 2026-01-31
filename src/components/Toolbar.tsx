@@ -7,7 +7,7 @@ interface ToolbarProps {
 
 export function Toolbar({ onAddNode, isPanMode, onTogglePanMode, isMobile }: ToolbarProps) {
   return (
-    <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-[100] flex gap-2">
+    <div className="absolute bottom-18 left-1/2 -translate-x-1/2 z-[100] flex gap-2">
       <button
         className="px-4 py-2 bg-zinc-800 border border-zinc-700 rounded-md text-white text-sm cursor-pointer transition-colors hover:bg-zinc-700"
         onClick={onAddNode}

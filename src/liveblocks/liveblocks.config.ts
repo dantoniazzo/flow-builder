@@ -52,11 +52,27 @@ export interface LiveExecutionRecord extends JsonObject {
   results: LiveExecutionResult[];
 }
 
+// Chat message types
+export interface LiveToolCall extends JsonObject {
+  name: string;
+  input: JsonObject;
+  result?: JsonObject | string | number | boolean | null;
+}
+
+export interface LiveChatMessage extends JsonObject {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+  toolCalls?: LiveToolCall[];
+}
+
 // Define the storage schema for our room
 type Storage = {
   nodes: LiveMap<string, LiveNode>;
   edges: LiveList<LiveEdge>;
   executionHistory: LiveList<LiveExecutionRecord>;
+  chatMessages: LiveList<LiveChatMessage>;
 };
 
 // Define presence for showing collaborator cursors
