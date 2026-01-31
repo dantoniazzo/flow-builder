@@ -18,14 +18,21 @@ import { CodeNode } from "./CodeNode";
 import { CodeEditorModal } from "./CodeEditorModal";
 import { Toolbar } from "./Toolbar";
 import { useFlowStore } from "../store/flowStore";
-import { useStorage, useMutation, type LiveNode, type LiveNodeData } from "../liveblocks/liveblocks.config";
+import {
+  useStorage,
+  useMutation,
+  type LiveNode,
+  type LiveNodeData,
+} from "../liveblocks/liveblocks.config";
 import { executeFlow, isStartNode } from "../execution/executeFlow";
 import type { CodeNode as CodeNodeType, FlowEdge } from "../types";
 
 // Wrapper component that provides isStartNode and onExecute to CodeNode
 function CodeNodeWrapper(props: {
   id: string;
-  data: LiveNodeData & { __flowProps?: { edges: FlowEdge[]; onExecute: (id: string) => void } };
+  data: LiveNodeData & {
+    __flowProps?: { edges: FlowEdge[]; onExecute: (id: string) => void };
+  };
   selected?: boolean;
 }) {
   const { edges, onExecute } = props.data.__flowProps || {};
@@ -122,7 +129,7 @@ export function Flow() {
         nodesMap.set(nodeId, { ...node, position });
       }
     },
-    []
+    [],
   );
 
   const updateNodeData = useMutation(
@@ -136,7 +143,7 @@ export function Flow() {
         });
       }
     },
-    []
+    [],
   );
 
   const deleteNode = useMutation(({ storage }, nodeId: string) => {
@@ -170,9 +177,17 @@ export function Flow() {
   }, []);
 
   const addEdgeMutation = useMutation(
-    ({ storage }, connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => {
+    (
+      { storage },
+      connection: {
+        source: string;
+        target: string;
+        sourceHandle?: string | null;
+        targetHandle?: string | null;
+      },
+    ) => {
       const edgesList = storage.get("edges");
-      const id = `e${connection.source}-${connection.sourceHandle || ''}-${connection.target}-${connection.targetHandle || ''}`;
+      const id = `e${connection.source}-${connection.sourceHandle || ""}-${connection.target}-${connection.targetHandle || ""}`;
       edgesList.push({
         id,
         source: connection.source,
@@ -181,7 +196,7 @@ export function Flow() {
         targetHandle: connection.targetHandle,
       });
     },
-    []
+    [],
   );
 
   const deleteEdge = useMutation(({ storage }, edgeId: string) => {
@@ -195,34 +210,57 @@ export function Flow() {
 
   // Execution history mutations
   const addExecutionRecord = useMutation(
-    ({ storage }, record: {
-      id: string;
-      startNodeId: string;
-      startNodeLabel: string;
-      startedAt: string;
-      status: "running" | "success" | "error";
-      nodesExecuted: number;
-      results: Array<{ nodeId: string; nodeLabel: string; result?: unknown; error?: string }>;
-    }) => {
+    (
+      { storage },
+      record: {
+        id: string;
+        startNodeId: string;
+        startNodeLabel: string;
+        startedAt: string;
+        status: "running" | "success" | "error";
+        nodesExecuted: number;
+        results: Array<{
+          nodeId: string;
+          nodeLabel: string;
+          result?: unknown;
+          error?: string;
+        }>;
+      },
+    ) => {
       const history = storage.get("executionHistory");
-      history.insert({
-        ...record,
-        results: record.results.map(r => ({
-          ...r,
-          result: r.result !== undefined ? JSON.parse(JSON.stringify(r.result)) : undefined,
-        })),
-      }, 0);
+      history.insert(
+        {
+          ...record,
+          results: record.results.map((r) => ({
+            ...r,
+            result:
+              r.result !== undefined
+                ? JSON.parse(JSON.stringify(r.result))
+                : undefined,
+          })),
+        },
+        0,
+      );
     },
-    []
+    [],
   );
 
   const updateExecutionRecord = useMutation(
-    ({ storage }, id: string, updates: {
-      completedAt?: string;
-      status?: "running" | "success" | "error";
-      nodesExecuted?: number;
-      results?: Array<{ nodeId: string; nodeLabel: string; result?: unknown; error?: string }>;
-    }) => {
+    (
+      { storage },
+      id: string,
+      updates: {
+        completedAt?: string;
+        status?: "running" | "success" | "error";
+        nodesExecuted?: number;
+        results?: Array<{
+          nodeId: string;
+          nodeLabel: string;
+          result?: unknown;
+          error?: string;
+        }>;
+      },
+    ) => {
       const history = storage.get("executionHistory");
       const historyArray = Array.from(history);
       const index = historyArray.findIndex((e) => e.id === id);
@@ -232,15 +270,18 @@ export function Flow() {
           ...existing,
           ...updates,
           results: updates.results
-            ? updates.results.map(r => ({
+            ? updates.results.map((r) => ({
                 ...r,
-                result: r.result !== undefined ? JSON.parse(JSON.stringify(r.result)) : undefined,
+                result:
+                  r.result !== undefined
+                    ? JSON.parse(JSON.stringify(r.result))
+                    : undefined,
               }))
             : existing.results,
         });
       }
     },
-    []
+    [],
   );
 
   // Handle node changes (position, selection, deletion)
@@ -256,7 +297,7 @@ export function Flow() {
       // Apply changes locally for smooth dragging
       setNodes((nds) => applyNodeChanges(changes, nds) as CodeNodeType[]);
     },
-    [updateNodePosition, deleteNode]
+    [updateNodePosition, deleteNode],
   );
 
   // Handle edge changes (deletion)
@@ -269,7 +310,7 @@ export function Flow() {
       }
       setEdges((eds) => applyEdgeChanges(changes, eds));
     },
-    [deleteEdge]
+    [deleteEdge],
   );
 
   // Handle new connections
@@ -284,7 +325,7 @@ export function Flow() {
         });
       }
     },
-    [addEdgeMutation]
+    [addEdgeMutation],
   );
 
   // Execute a flow starting from a specific node
@@ -304,9 +345,14 @@ export function Flow() {
         results: [],
       });
 
-      const result = await executeFlow(startNodeId, nodes, edges, (nodeId, updates) => {
-        updateNodeData(nodeId, updates);
-      });
+      const result = await executeFlow(
+        startNodeId,
+        nodes,
+        edges,
+        (nodeId, updates) => {
+          updateNodeData(nodeId, updates);
+        },
+      );
 
       // Update execution record with results in LiveBlocks
       updateExecutionRecord(executionId, {
@@ -316,13 +362,13 @@ export function Flow() {
         results: result.results,
       });
     },
-    [nodes, edges, updateNodeData, addExecutionRecord, updateExecutionRecord]
+    [nodes, edges, updateNodeData, addExecutionRecord, updateExecutionRecord],
   );
 
   // Get selected node for editor
   const selectedNode = useMemo(
     () => nodes.find((n) => n.id === selectedNodeId),
-    [nodes, selectedNodeId]
+    [nodes, selectedNodeId],
   );
 
   // Inject flow props into node data for the wrapper
@@ -338,7 +384,7 @@ export function Flow() {
           },
         },
       })),
-    [nodes, edges, handleExecuteFlow]
+    [nodes, edges, handleExecuteFlow],
   );
 
   const handleSaveCode = useCallback(
@@ -347,11 +393,13 @@ export function Flow() {
         updateNodeData(selectedNodeId, { code });
       }
     },
-    [selectedNodeId, updateNodeData]
+    [selectedNodeId, updateNodeData],
   );
 
   return (
-    <div className={`w-screen h-screen relative ${activePanMode ? "cursor-grab active:cursor-grabbing" : ""}`}>
+    <div
+      className={`w-screen h-screen relative ${activePanMode ? "cursor-grab active:cursor-grabbing" : ""}`}
+    >
       <Toolbar
         onAddNode={addNode}
         isPanMode={isPanMode}

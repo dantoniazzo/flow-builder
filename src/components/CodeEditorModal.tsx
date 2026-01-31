@@ -52,7 +52,14 @@ export function CodeEditorModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden">
+        <div
+          onKeyDown={(e) => {
+            // Stopping propagation because we don't want to reach
+            // window event listener from React Flow
+            e.stopPropagation();
+          }}
+          className="flex-1 overflow-hidden"
+        >
           <Editor
             height="100%"
             defaultLanguage="javascript"
@@ -75,7 +82,12 @@ export function CodeEditorModal({
           <Button variant="outline" onClick={closeEditor}>
             Cancel
           </Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 text-white">Save</Button>
+          <Button
+            onClick={handleSave}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            Save
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
