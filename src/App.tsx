@@ -1,66 +1,26 @@
-import { useState, useCallback } from "react";
-import {
-  ReactFlow,
-  applyNodeChanges,
-  applyEdgeChanges,
-  addEdge,
-  type NodeChange,
-  type EdgeChange,
-  type Connection,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
+import { Suspense } from "react";
+import { RoomProviderWrapper } from "./liveblocks/RoomProvider";
+import { Flow } from "./components/Flow";
 
-const initialNodes = [
-  { id: "n1", position: { x: 0, y: 0 }, data: { label: "Node 1" } },
-  { id: "n2", position: { x: 0, y: 100 }, data: { label: "Node 2" } },
-];
-const initialEdges = [{ id: "n1-n2", source: "n1", target: "n2" }];
+function LoadingScreen() {
+  return (
+    <div className="w-screen h-screen flex flex-col items-center justify-center gap-4 bg-zinc-950">
+      <div className="w-10 h-10 border-[3px] border-zinc-700 border-t-blue-500 rounded-full animate-spin" />
+      <p className="text-zinc-400">Connecting to room...</p>
+    </div>
+  );
+}
 
 export default function App() {
-  const [nodes, setNodes] = useState(initialNodes);
-  const [edges, setEdges] = useState(initialEdges);
-
-  const onNodesChange = useCallback(
-    (
-      changes: NodeChange<{
-        id: string;
-        position: {
-          x: number;
-          y: number;
-        };
-        data: {
-          label: string;
-        };
-      }>[],
-    ) => setNodes((nodesSnapshot) => applyNodeChanges(changes, nodesSnapshot)),
-    [],
-  );
-  const onEdgesChange = useCallback(
-    (
-      changes: EdgeChange<{
-        id: string;
-        source: string;
-        target: string;
-      }>[],
-    ) => setEdges((edgesSnapshot) => applyEdgeChanges(changes, edgesSnapshot)),
-    [],
-  );
-  const onConnect = useCallback(
-    (params: Connection) =>
-      setEdges((edgesSnapshot) => addEdge(params, edgesSnapshot)),
-    [],
-  );
+  // Get room ID from URL or use default
+  const roomId =
+    new URLSearchParams(window.location.search).get("room") || "default-room";
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        fitView
-      />
-    </div>
+    <RoomProviderWrapper roomId={roomId}>
+      <Suspense fallback={<LoadingScreen />}>
+        <Flow />
+      </Suspense>
+    </RoomProviderWrapper>
   );
 }

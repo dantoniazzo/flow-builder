@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+/* Global styles */
+body {
+  @apply m-0 font-sans bg-zinc-950 text-white;
+}
+
+/* ReactFlow overrides */
+.react-flow__node {
+  @apply p-0;
+}
+
+.react-flow__edge-path {
+  @apply stroke-zinc-500 stroke-2;
+}
+
+.react-flow__edge.selected .react-flow__edge-path {
+  @apply stroke-blue-500;
+}
