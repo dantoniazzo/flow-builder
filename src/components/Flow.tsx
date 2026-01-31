@@ -251,8 +251,10 @@ export function Flow() {
         colorMode="dark"
         fitView
         deleteKeyCode={["Backspace", "Delete"]}
+        snapToGrid
+        snapGrid={[20, 20]}
       >
-        <Background />
+        <Background gap={20} />
         <Controls />
       </ReactFlow>
 

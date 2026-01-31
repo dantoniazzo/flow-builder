@@ -43,9 +43,17 @@ function CodeNodeComponent({
       className={`bg-zinc-900 border-2 rounded-lg p-3 min-w-[180px] max-w-[250px] cursor-pointer transition-all ${getBorderClass()}`}
       onDoubleClick={handleDoubleClick}
     >
+      {/* Target handles (inputs) */}
       <Handle
         type="target"
         position={Position.Top}
+        id="top"
+        className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        id="left"
         className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
       />
 
@@ -82,9 +90,17 @@ function CodeNodeComponent({
         </button>
       )}
 
+      {/* Source handles (outputs) */}
       <Handle
         type="source"
         position={Position.Bottom}
+        id="bottom"
+        className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
+      />
+      <Handle
+        type="source"
+        position={Position.Right}
+        id="right"
         className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
       />
     </div>
