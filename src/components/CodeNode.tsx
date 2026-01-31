@@ -11,6 +11,8 @@ interface CodeNodeProps {
   onExecute: () => void;
 }
 
+const handleClass = "!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500";
+
 function CodeNodeComponent({
   id,
   data,
@@ -43,19 +45,17 @@ function CodeNodeComponent({
       className={`bg-zinc-900 border-2 rounded-lg p-3 min-w-[180px] max-w-[250px] cursor-pointer transition-all ${getBorderClass()}`}
       onDoubleClick={handleDoubleClick}
     >
-      {/* Target handles (inputs) */}
-      <Handle
-        type="target"
-        position={Position.Top}
-        id="top"
-        className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
-      />
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="left"
-        className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
-      />
+      {/* Top handle */}
+      <Handle type="source" position={Position.Top} id="top" className={handleClass} />
+
+      {/* Left handle */}
+      <Handle type="source" position={Position.Left} id="left" className={handleClass} />
+
+      {/* Right handle */}
+      <Handle type="source" position={Position.Right} id="right" className={handleClass} />
+
+      {/* Bottom handle */}
+      <Handle type="source" position={Position.Bottom} id="bottom" className={handleClass} />
 
       <div className="flex items-center justify-between mb-2">
         <span className="font-semibold text-sm text-white">{data.label}</span>
@@ -89,20 +89,6 @@ function CodeNodeComponent({
           {data.isExecuting ? "Running..." : "Execute Flow"}
         </button>
       )}
-
-      {/* Source handles (outputs) */}
-      <Handle
-        type="source"
-        position={Position.Bottom}
-        id="bottom"
-        className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
-      />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="right"
-        className="!w-2.5 !h-2.5 !bg-zinc-500 !border-2 !border-zinc-900 hover:!bg-blue-500"
-      />
     </div>
   );
 }

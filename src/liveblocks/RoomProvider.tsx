@@ -61,7 +61,7 @@ export function RoomProviderWrapper({ roomId, children }: Props) {
           },
         ],
       ]),
-      edges: new LiveList<LiveEdge>([{ id: "e1-2", source: "n1", target: "n2" }]),
+      edges: new LiveList<LiveEdge>([{ id: "e1-2-bottom-top", source: "n1", target: "n2", sourceHandle: "bottom", targetHandle: "top" }]),
     }),
     []
   );

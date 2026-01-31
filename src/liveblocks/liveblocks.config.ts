@@ -29,6 +29,8 @@ export interface LiveEdge extends JsonObject {
   id: string;
   source: string;
   target: string;
+  sourceHandle?: string | null;
+  targetHandle?: string | null;
 }
 
 // Define the storage schema for our room

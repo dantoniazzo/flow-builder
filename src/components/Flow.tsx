@@ -3,6 +3,7 @@ import {
   ReactFlow,
   Background,
   Controls,
+  ConnectionMode,
   type NodeTypes,
   type OnNodesChange,
   type OnEdgesChange,
@@ -137,13 +138,15 @@ export function Flow() {
   }, []);
 
   const addEdgeMutation = useMutation(
-    ({ storage }, connection: { source: string; target: string }) => {
+    ({ storage }, connection: { source: string; target: string; sourceHandle?: string | null; targetHandle?: string | null }) => {
       const edgesList = storage.get("edges");
-      const id = `e${connection.source}-${connection.target}`;
+      const id = `e${connection.source}-${connection.sourceHandle || ''}-${connection.target}-${connection.targetHandle || ''}`;
       edgesList.push({
         id,
         source: connection.source,
         target: connection.target,
+        sourceHandle: connection.sourceHandle,
+        targetHandle: connection.targetHandle,
       });
     },
     []
@@ -191,7 +194,12 @@ export function Flow() {
   const onConnect = useCallback(
     (connection: Connection) => {
       if (connection.source && connection.target) {
-        addEdgeMutation({ source: connection.source, target: connection.target });
+        addEdgeMutation({
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle,
+          targetHandle: connection.targetHandle,
+        });
       }
     },
     [addEdgeMutation]
@@ -253,6 +261,7 @@ export function Flow() {
         deleteKeyCode={["Backspace", "Delete"]}
         snapToGrid
         snapGrid={[20, 20]}
+        connectionMode={ConnectionMode.Loose}
       >
         <Background gap={20} />
         <Controls />
