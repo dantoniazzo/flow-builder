@@ -25,6 +25,7 @@ import {
   type LiveNodeData,
 } from "../liveblocks/liveblocks.config";
 import { executeFlow, isStartNode } from "../execution/executeFlow";
+import { useIsMobile } from "../shared/lib/useIsMobile";
 import type { CodeNode as CodeNodeType, FlowEdge } from "../types";
 
 // Wrapper component that provides isStartNode and onExecute to CodeNode
@@ -55,10 +56,37 @@ const nodeTypes: NodeTypes = {
 
 export function Flow() {
   const { isEditorOpen, selectedNodeId } = useFlowStore();
+  const isMobile = useIsMobile();
 
-  // Pan mode state (hand tool)
+  // Pan mode state (hand tool) - always true on mobile
   const [isPanMode, setIsPanMode] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
+
+  // Hide LiveBlocks badge using MutationObserver to catch it when it's added
+  useEffect(() => {
+    const hideBadge = () => {
+      const badge = document.getElementById("liveblocks-badge");
+      if (badge) {
+        badge.style.display = "none";
+        return true;
+      }
+      return false;
+    };
+
+    // Try immediately in case it already exists
+    if (hideBadge()) return;
+
+    // Watch for it being added to the DOM
+    const observer = new MutationObserver(() => {
+      if (hideBadge()) {
+        observer.disconnect();
+      }
+    });
+
+    observer.observe(document.body, { childList: true, subtree: true });
+
+    return () => observer.disconnect();
+  }, []);
 
   // Get data from LiveBlocks storage
   const liveNodes = useStorage((root) => root.nodes);
@@ -92,8 +120,8 @@ export function Flow() {
     };
   }, [isEditorOpen]);
 
-  // Combined pan mode (either hand tool or space key)
-  const activePanMode = isPanMode || isSpacePressed;
+  // Combined pan mode (either hand tool, space key, or mobile)
+  const activePanMode = isMobile || isPanMode || isSpacePressed;
 
   // Sync LiveBlocks storage to local state
   // Note: This pattern is intentional for syncing from external LiveBlocks storage
@@ -404,6 +432,7 @@ export function Flow() {
         onAddNode={addNode}
         isPanMode={isPanMode}
         onTogglePanMode={() => setIsPanMode(!isPanMode)}
+        isMobile={isMobile}
       />
       <ReactFlow
         nodes={nodesWithFlowProps}
