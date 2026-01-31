@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import Editor, { type OnMount } from "@monaco-editor/react";
 import type * as Monaco from "monaco-editor";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useFlowStore } from "../store/flowStore";
 import { useIsMobile } from "../shared/lib/useIsMobile";
+import { useMonacoTouchSelection } from "../shared/lib/useMonacoTouchSelection";
 
 // Remove built-in paste from context menu (runs once)
 let pasteMenuRemoved = false;
@@ -58,8 +59,12 @@ export function CodeEditorModal({
 }: CodeEditorModalProps) {
   const { isEditorOpen, closeEditor } = useFlowStore();
   const [localCode, setLocalCode] = useState(code);
+  const [editorInstance, setEditorInstance] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const isMobile = useIsMobile();
+
+  // Enable touch selection handles on mobile
+  useMonacoTouchSelection(editorInstance, isMobile);
 
   useEffect(() => {
     setLocalCode(code);
@@ -85,8 +90,9 @@ export function CodeEditorModal({
     }
   };
 
-  const handleEditorMount: OnMount = (editor, monaco) => {
+  const handleEditorMount: OnMount = useCallback((editor, monaco) => {
     editorRef.current = editor;
+    setEditorInstance(editor);
 
     // Override the built-in paste command to use Clipboard API
     editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyV, () => {
@@ -102,7 +108,7 @@ export function CodeEditorModal({
       contextMenuOrder: 3,
       run: (ed) => pasteFromClipboard(ed),
     });
-  };
+  }, []);
 
   const handlePaste = async () => {
     if (!editorRef.current) return;
