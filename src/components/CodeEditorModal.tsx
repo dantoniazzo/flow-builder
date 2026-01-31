@@ -50,17 +50,23 @@ interface CodeEditorModalProps {
   nodeLabel: string;
   code: string;
   onSave: (code: string) => void;
+  onRename: (label: string) => void;
 }
 
 export function CodeEditorModal({
   nodeLabel,
   code,
   onSave,
+  onRename,
 }: CodeEditorModalProps) {
   const { isEditorOpen, closeEditor } = useFlowStore();
   const [localCode, setLocalCode] = useState(code);
+  const [localLabel, setLocalLabel] = useState(nodeLabel);
+  const [isEditingLabel, setIsEditingLabel] = useState(false);
   const [editorInstance, setEditorInstance] = useState<Monaco.editor.IStandaloneCodeEditor | null>(null);
   const editorRef = useRef<Monaco.editor.IStandaloneCodeEditor | null>(null);
+  const labelInputRef = useRef<HTMLInputElement | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isMobile = useIsMobile();
 
   // Enable touch selection handles on mobile
@@ -69,6 +75,46 @@ export function CodeEditorModal({
   useEffect(() => {
     setLocalCode(code);
   }, [code]);
+
+  useEffect(() => {
+    setLocalLabel(nodeLabel);
+    // Auto-enable editing and select all if default title
+    if (nodeLabel === "New Node") {
+      setIsEditingLabel(true);
+    }
+  }, [nodeLabel]);
+
+  // Focus and select input when entering edit mode
+  useEffect(() => {
+    if (isEditingLabel && labelInputRef.current) {
+      labelInputRef.current.focus();
+      if (localLabel === "New Node") {
+        labelInputRef.current.select();
+      }
+    }
+  }, [isEditingLabel, localLabel]);
+
+  // Debounced rename handler
+  const handleLabelChange = (newLabel: string) => {
+    setLocalLabel(newLabel);
+
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      onRename(newLabel);
+    }, 300);
+  };
+
+  // Cleanup debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, []);
 
   const pasteFromClipboard = async (
     editor: Pick<Monaco.editor.ICodeEditor, "getSelection" | "executeEdits">
@@ -110,12 +156,6 @@ export function CodeEditorModal({
     });
   }, []);
 
-  const handlePaste = async () => {
-    if (!editorRef.current) return;
-    await pasteFromClipboard(editorRef.current);
-    editorRef.current.focus();
-  };
-
   const handleSave = () => {
     onSave(localCode);
     closeEditor();
@@ -125,19 +165,35 @@ export function CodeEditorModal({
     <Dialog open={isEditorOpen} onOpenChange={(open) => !open && closeEditor()}>
       <DialogContent className="max-w-4xl h-[80vh] flex flex-col gap-0 p-0 bg-zinc-900 border-zinc-700">
         <DialogHeader className="px-6 py-4 border-b border-zinc-700">
-          <div className="flex items-center justify-between">
-            <DialogTitle className="text-white">Edit: {nodeLabel}</DialogTitle>
-            {isMobile && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handlePaste}
-                className="ml-2"
-              >
-                Paste
-              </Button>
-            )}
-          </div>
+          <DialogTitle asChild>
+            <div className="flex items-center gap-2 flex-1 min-w-0">
+              <span className="text-white text-lg font-semibold shrink-0">Edit:</span>
+              {isEditingLabel ? (
+                <input
+                  ref={labelInputRef}
+                  type="text"
+                  value={localLabel}
+                  onChange={(e) => handleLabelChange(e.target.value)}
+                  onBlur={() => setIsEditingLabel(false)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === "Escape") {
+                      setIsEditingLabel(false);
+                    }
+                  }}
+                  className="flex-1 min-w-0 bg-zinc-800 border border-zinc-600 rounded px-2 py-1 text-white text-lg font-semibold focus:outline-none focus:border-blue-500"
+                  placeholder="Node name"
+                />
+              ) : (
+                <span
+                  onDoubleClick={() => setIsEditingLabel(true)}
+                  className="text-white text-lg font-semibold cursor-pointer hover:text-zinc-300 truncate"
+                  title="Double-click to edit"
+                >
+                  {localLabel}
+                </span>
+              )}
+            </div>
+          </DialogTitle>
           <DialogDescription className="text-zinc-400">
             Write JavaScript code. Use{" "}
             <code className="bg-zinc-800 px-1.5 py-0.5 rounded font-mono text-xs">

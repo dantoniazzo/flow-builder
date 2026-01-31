@@ -424,6 +424,15 @@ export function Flow() {
     [selectedNodeId, updateNodeData],
   );
 
+  const handleRenameNode = useCallback(
+    (label: string) => {
+      if (selectedNodeId) {
+        updateNodeData(selectedNodeId, { label });
+      }
+    },
+    [selectedNodeId, updateNodeData],
+  );
+
   return (
     <div
       className={`w-screen h-screen relative ${activePanMode ? "cursor-grab active:cursor-grabbing" : ""}`}
@@ -467,6 +476,7 @@ export function Flow() {
           nodeLabel={selectedNode.data.label}
           code={selectedNode.data.code}
           onSave={handleSaveCode}
+          onRename={handleRenameNode}
         />
       )}
     </div>
