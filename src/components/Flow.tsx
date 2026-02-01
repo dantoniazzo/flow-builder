@@ -28,6 +28,7 @@ import {
   type LiveNode,
   type LiveNodeData,
   type LiveChatMessage,
+  type NodeIconType,
 } from "../liveblocks/liveblocks.config";
 import { executeFlow, isStartNode } from "../execution/executeFlow";
 import { useIsMobile } from "../shared/lib/useIsMobile";
@@ -41,11 +42,15 @@ import type { ChatMessage } from "../types/ai";
 function CodeNodeWrapper(props: {
   id: string;
   data: LiveNodeData & {
-    __flowProps?: { edges: FlowEdge[]; onExecute: (id: string) => void };
+    __flowProps?: {
+      edges: FlowEdge[];
+      onExecute: (id: string) => void;
+      onIconChange: (id: string, icon: NodeIconType) => void;
+    };
   };
   selected?: boolean;
 }) {
-  const { edges, onExecute } = props.data.__flowProps || {};
+  const { edges, onExecute, onIconChange } = props.data.__flowProps || {};
   const startNode = edges ? isStartNode(props.id, edges) : false;
 
   return (
@@ -55,6 +60,7 @@ function CodeNodeWrapper(props: {
       selected={props.selected}
       isStartNode={startNode}
       onExecute={() => onExecute?.(props.id)}
+      onIconChange={(icon) => onIconChange?.(props.id, icon)}
     />
   );
 }
@@ -466,6 +472,14 @@ export function Flow() {
     [nodes, selectedNodeId],
   );
 
+  // Handle icon change for a node
+  const handleIconChange = useCallback(
+    (nodeId: string, icon: NodeIconType) => {
+      updateNodeData(nodeId, { icon });
+    },
+    [updateNodeData],
+  );
+
   // Inject flow props into node data for the wrapper
   const nodesWithFlowProps = useMemo(
     () =>
@@ -476,10 +490,11 @@ export function Flow() {
           __flowProps: {
             edges,
             onExecute: handleExecuteFlow,
+            onIconChange: handleIconChange,
           },
         },
       })),
-    [nodes, edges, handleExecuteFlow],
+    [nodes, edges, handleExecuteFlow, handleIconChange],
   );
 
   const handleSaveCode = useCallback(

@@ -17,6 +17,12 @@ export const AI_TOOLS: Anthropic.Tool[] = [
           description:
             "JavaScript code to execute. Has access to 'input' (data from previous node) and should 'return' data for next node. Can use async/await and fetch().",
         },
+        icon: {
+          type: "string",
+          enum: ["code", "start", "api-fetch", "api-post", "render"],
+          description:
+            "Icon representing the node's purpose. Use 'start' for entry points, 'api-fetch' for GET requests, 'api-post' for POST/PUT requests, 'render' for displaying data, 'code' for general processing.",
+        },
         position: {
           type: "object",
           description:
@@ -32,7 +38,7 @@ export const AI_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "update_node",
-    description: "Update an existing node's code or label",
+    description: "Update an existing node's code, label, or icon",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -47,6 +53,12 @@ export const AI_TOOLS: Anthropic.Tool[] = [
         code: {
           type: "string",
           description: "New JavaScript code for the node",
+        },
+        icon: {
+          type: "string",
+          enum: ["code", "start", "api-fetch", "api-post", "render"],
+          description:
+            "Icon representing the node's purpose. Use 'start' for entry points, 'api-fetch' for GET requests, 'api-post' for POST/PUT requests, 'render' for displaying data, 'code' for general processing.",
         },
       },
       required: ["nodeId"],

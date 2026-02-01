@@ -7,10 +7,14 @@ const client = createClient({
   publicApiKey: import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY || "pk_dev_placeholder",
 });
 
+// Node icon types
+export type NodeIconType = "code" | "start" | "api-fetch" | "api-post" | "render";
+
 // JSON-serializable node data for LiveBlocks storage
 export interface LiveNodeData extends JsonObject {
   label: string;
   code: string;
+  icon?: NodeIconType;
   lastResult?: JsonObject | string | number | boolean | null;
   isExecuting?: boolean;
   error?: string;

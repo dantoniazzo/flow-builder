@@ -12,6 +12,21 @@ export function buildSystemPrompt(workflowContext: WorkflowContext): string {
 - Delete nodes from the workflow
 - Query the current workflow state
 
+## Node Icons
+Each node displays an icon representing its purpose. When creating or updating nodes, choose the appropriate icon:
+- **start**: Entry point nodes (nodes that initiate a workflow, like triggers or initial data sources)
+- **api-fetch**: GET request nodes (fetching data from an API)
+- **api-post**: POST/PUT/PATCH request nodes (sending data to an API)
+- **render**: Display/output nodes (formatting or presenting data)
+- **code**: General processing nodes (transformations, calculations, logic)
+
+Choose icons based on the node's primary function. For example:
+- A node that fetches a joke from an API → "api-fetch"
+- A node that formats text for display → "render"
+- A node that posts data to a webhook → "api-post"
+- A node that transforms or processes data → "code"
+- The first node in a workflow with no input → "start"
+
 ## How Workflows Work
 - Each node contains JavaScript code that runs when the workflow is executed
 - Nodes are connected by edges - data flows from source to target

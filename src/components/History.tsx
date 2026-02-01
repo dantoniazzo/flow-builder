@@ -1,7 +1,16 @@
 import { useMemo, useState, useEffect } from "react";
 import { AgGridReact } from "ag-grid-react";
-import { AllCommunityModule, ModuleRegistry, type ColDef, themeQuartz } from "ag-grid-community";
-import { useStorage, useMutation, type LiveExecutionRecord } from "../liveblocks/liveblocks.config";
+import {
+  AllCommunityModule,
+  ModuleRegistry,
+  type ColDef,
+  themeQuartz,
+} from "ag-grid-community";
+import {
+  useStorage,
+  useMutation,
+  type LiveExecutionRecord,
+} from "../liveblocks/liveblocks.config";
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -27,8 +36,11 @@ interface ExecutionRow {
 
 export function History() {
   const liveHistory = useStorage((root) => root.executionHistory);
-  const [executionHistory, setExecutionHistory] = useState<LiveExecutionRecord[]>([]);
-  const [selectedExecution, setSelectedExecution] = useState<LiveExecutionRecord | null>(null);
+  const [executionHistory, setExecutionHistory] = useState<
+    LiveExecutionRecord[]
+  >([]);
+  const [selectedExecution, setSelectedExecution] =
+    useState<LiveExecutionRecord | null>(null);
 
   // Sync LiveBlocks storage to local state
   useEffect(() => {
@@ -110,7 +122,7 @@ export function History() {
         width: 120,
       },
     ],
-    []
+    [],
   );
 
   const defaultColDef: ColDef = useMemo(
@@ -118,7 +130,7 @@ export function History() {
       sortable: true,
       resizable: true,
     }),
-    []
+    [],
   );
 
   const handleClearHistory = () => {
@@ -140,13 +152,15 @@ export function History() {
         )}
       </div>
 
-      <div className="flex-1 flex">
+      <div className="flex-1 flex p-4">
         <div className={`${selectedExecution ? "w-1/2" : "w-full"} h-full`}>
           {executionHistory.length === 0 ? (
             <div className="flex items-center justify-center h-full text-zinc-500">
               <div className="text-center">
                 <p className="text-lg mb-2">No executions yet</p>
-                <p className="text-sm">Run a flow to see execution history here</p>
+                <p className="text-sm">
+                  Run a flow to see execution history here
+                </p>
               </div>
             </div>
           ) : (
@@ -156,7 +170,9 @@ export function History() {
               columnDefs={columnDefs}
               defaultColDef={defaultColDef}
               rowSelection="single"
-              onRowClicked={(event) => setSelectedExecution(event.data?.record || null)}
+              onRowClicked={(event) =>
+                setSelectedExecution(event.data?.record || null)
+              }
               getRowId={(params) => params.data.id}
             />
           )}
@@ -166,7 +182,9 @@ export function History() {
           <div className="w-1/2 h-full border-l border-zinc-800 overflow-auto">
             <div className="p-4">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-white">Execution Details</h3>
+                <h3 className="text-lg font-semibold text-white">
+                  Execution Details
+                </h3>
                 <button
                   className="text-zinc-400 hover:text-white text-xl leading-none"
                   onClick={() => setSelectedExecution(null)}
@@ -179,29 +197,37 @@ export function History() {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <span className="text-zinc-500">Start Node</span>
-                    <p className="text-white">{selectedExecution.startNodeLabel}</p>
+                    <p className="text-white">
+                      {selectedExecution.startNodeLabel}
+                    </p>
                   </div>
                   <div>
                     <span className="text-zinc-500">Status</span>
-                    <p className={`font-medium ${
-                      selectedExecution.status === "success"
-                        ? "text-green-400"
-                        : selectedExecution.status === "error"
-                        ? "text-red-400"
-                        : "text-orange-400"
-                    }`}>
+                    <p
+                      className={`font-medium ${
+                        selectedExecution.status === "success"
+                          ? "text-green-400"
+                          : selectedExecution.status === "error"
+                            ? "text-red-400"
+                            : "text-orange-400"
+                      }`}
+                    >
                       {selectedExecution.status}
                     </p>
                   </div>
                   <div>
                     <span className="text-zinc-500">Started At</span>
-                    <p className="text-white">{new Date(selectedExecution.startedAt).toLocaleString()}</p>
+                    <p className="text-white">
+                      {new Date(selectedExecution.startedAt).toLocaleString()}
+                    </p>
                   </div>
                   <div>
                     <span className="text-zinc-500">Completed At</span>
                     <p className="text-white">
                       {selectedExecution.completedAt
-                        ? new Date(selectedExecution.completedAt).toLocaleString()
+                        ? new Date(
+                            selectedExecution.completedAt,
+                          ).toLocaleString()
                         : "—"}
                     </p>
                   </div>
@@ -223,7 +249,9 @@ export function History() {
                           <span className="font-medium text-white text-sm">
                             {result.nodeLabel}
                           </span>
-                          <span className="text-xs text-zinc-500">{result.nodeId}</span>
+                          <span className="text-xs text-zinc-500">
+                            {result.nodeId}
+                          </span>
                         </div>
                         {result.error ? (
                           <pre className="text-xs text-red-400 whitespace-pre-wrap">

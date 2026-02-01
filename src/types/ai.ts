@@ -1,5 +1,7 @@
 export type AIProvider = "anthropic" | "openai";
 
+export type NodeIconType = "code" | "start" | "api-fetch" | "api-post" | "render";
+
 export interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -19,6 +21,7 @@ export interface WorkflowContext {
     id: string;
     label: string;
     code: string;
+    icon?: NodeIconType;
     position: { x: number; y: number };
   }>;
   edges: Array<{
@@ -33,6 +36,7 @@ export interface WorkflowContext {
 export interface CreateNodeInput {
   label: string;
   code: string;
+  icon?: NodeIconType;
   position?: { x: number; y: number };
 }
 
@@ -40,6 +44,7 @@ export interface UpdateNodeInput {
   nodeId: string;
   label?: string;
   code?: string;
+  icon?: NodeIconType;
 }
 
 export interface ConnectNodesInput {

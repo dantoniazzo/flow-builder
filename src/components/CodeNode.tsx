@@ -1,8 +1,9 @@
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import type { LiveNodeData } from "../liveblocks/liveblocks.config";
+import type { LiveNodeData, NodeIconType } from "../liveblocks/liveblocks.config";
 import { useFlowStore } from "../store/flowStore";
 import { Button } from "./ui/button";
+import { NodeIcon } from "./NodeIcon";
 
 interface CodeNodeProps {
   id: string;
@@ -10,6 +11,7 @@ interface CodeNodeProps {
   selected?: boolean;
   isStartNode: boolean;
   onExecute: () => void;
+  onIconChange?: (icon: NodeIconType) => void;
 }
 
 const handleClass =
@@ -21,6 +23,7 @@ function CodeNodeComponent({
   selected,
   isStartNode,
   onExecute,
+  onIconChange,
 }: CodeNodeProps) {
   const { openEditor } = useFlowStore();
 
@@ -31,6 +34,10 @@ function CodeNodeComponent({
   const handleExecuteClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     onExecute();
+  };
+
+  const handleIconChange = (icon: NodeIconType) => {
+    onIconChange?.(icon);
   };
 
   // Determine border color based on status
@@ -82,10 +89,18 @@ function CodeNodeComponent({
       />
 
       <div className="flex items-center justify-between mb-2">
-        <span className="font-semibold text-sm text-white">{data.label}</span>
-        {data.isExecuting && (
-          <span className="w-3.5 h-3.5 border-2 border-transparent border-t-orange-500 rounded-full animate-spin" />
-        )}
+        <span className="font-semibold text-sm text-white truncate flex-1 mr-2">
+          {data.label}
+        </span>
+        <div className="flex items-center gap-1">
+          {data.isExecuting && (
+            <span className="w-3.5 h-3.5 border-2 border-transparent border-t-orange-500 rounded-full animate-spin" />
+          )}
+          <NodeIcon
+            icon={data.icon || "code"}
+            onChange={handleIconChange}
+          />
+        </div>
       </div>
 
       <div className="font-mono text-[11px] text-zinc-400 bg-zinc-800 px-2 py-1.5 rounded whitespace-nowrap overflow-hidden text-ellipsis mb-2">
