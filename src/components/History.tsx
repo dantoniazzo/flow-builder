@@ -1,3 +1,5 @@
+"use client";
+
 import { useMemo, useState, useEffect } from "react";
 import { AgGridReact } from "ag-grid-react";
 import {

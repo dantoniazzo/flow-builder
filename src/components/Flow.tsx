@@ -1,3 +1,5 @@
+"use client";
+
 import { useCallback, useMemo, useEffect, useState, useRef } from "react";
 import {
   ReactFlow,
@@ -25,12 +27,13 @@ import { useChatStore } from "../store/chatStore";
 import {
   useStorage,
   useMutation,
+  useRoom,
   type LiveNode,
   type LiveNodeData,
   type LiveChatMessage,
   type NodeIconType,
 } from "../liveblocks/liveblocks.config";
-import { executeFlow, isStartNode } from "../execution/executeFlow";
+import { isStartNode } from "../execution/executeFlow";
 import { useIsMobile } from "../shared/lib/useIsMobile";
 import { useAITools } from "../hooks/useAITools";
 import { AIService } from "../ai/aiService";
@@ -81,6 +84,7 @@ export function Flow() {
     togglePanel,
   } = useChatStore();
   const isMobile = useIsMobile();
+  const room = useRoom();
 
   // Get chat messages from LiveBlocks
   const liveChatMessages = useStorage((root) => root.chatMessages);
@@ -209,14 +213,12 @@ export function Flow() {
           type: "code",
         } as CodeNodeType);
       });
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNodes(nodeArray);
     }
   }, [liveNodes]);
 
   useEffect(() => {
     if (liveEdges) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEdges(Array.from(liveEdges) as FlowEdge[]);
     }
   }, [liveEdges]);
@@ -309,6 +311,50 @@ export function Flow() {
     }
   }, []);
 
+  // Handle node changes (position, selection, deletion)
+  const onNodesChange: OnNodesChange = useCallback(
+    (changes) => {
+      for (const change of changes) {
+        if (change.type === "position" && change.position) {
+          updateNodePosition(change.id, change.position);
+        } else if (change.type === "remove") {
+          deleteNode(change.id);
+        }
+      }
+      // Apply changes locally for smooth dragging
+      setNodes((nds) => applyNodeChanges(changes, nds) as CodeNodeType[]);
+    },
+    [updateNodePosition, deleteNode],
+  );
+
+  // Handle edge changes (deletion)
+  const onEdgesChange: OnEdgesChange = useCallback(
+    (changes) => {
+      for (const change of changes) {
+        if (change.type === "remove") {
+          deleteEdge(change.id);
+        }
+      }
+      setEdges((eds) => applyEdgeChanges(changes, eds));
+    },
+    [deleteEdge],
+  );
+
+  // Handle new connections
+  const onConnect = useCallback(
+    (connection: Connection) => {
+      if (connection.source && connection.target) {
+        addEdgeMutation({
+          source: connection.source,
+          target: connection.target,
+          sourceHandle: connection.sourceHandle,
+          targetHandle: connection.targetHandle,
+        });
+      }
+    },
+    [addEdgeMutation],
+  );
+
   // Execution history mutations
   const addExecutionRecord = useMutation(
     (
@@ -385,57 +431,21 @@ export function Flow() {
     [],
   );
 
-  // Handle node changes (position, selection, deletion)
-  const onNodesChange: OnNodesChange = useCallback(
-    (changes) => {
-      for (const change of changes) {
-        if (change.type === "position" && change.position) {
-          updateNodePosition(change.id, change.position);
-        } else if (change.type === "remove") {
-          deleteNode(change.id);
-        }
-      }
-      // Apply changes locally for smooth dragging
-      setNodes((nds) => applyNodeChanges(changes, nds) as CodeNodeType[]);
-    },
-    [updateNodePosition, deleteNode],
-  );
-
-  // Handle edge changes (deletion)
-  const onEdgesChange: OnEdgesChange = useCallback(
-    (changes) => {
-      for (const change of changes) {
-        if (change.type === "remove") {
-          deleteEdge(change.id);
-        }
-      }
-      setEdges((eds) => applyEdgeChanges(changes, eds));
-    },
-    [deleteEdge],
-  );
-
-  // Handle new connections
-  const onConnect = useCallback(
-    (connection: Connection) => {
-      if (connection.source && connection.target) {
-        addEdgeMutation({
-          source: connection.source,
-          target: connection.target,
-          sourceHandle: connection.sourceHandle,
-          targetHandle: connection.targetHandle,
-        });
-      }
-    },
-    [addEdgeMutation],
-  );
-
   // Execute a flow starting from a specific node
+  // Uses server-side code execution but client-side Liveblocks updates for real-time UI
   const handleExecuteFlow = useCallback(
     async (startNodeId: string) => {
       const startNode = nodes.find((n) => n.id === startNodeId);
       const executionId = `exec-${Date.now()}`;
+      const results: Array<{
+        nodeId: string;
+        nodeLabel: string;
+        result?: unknown;
+        error?: string;
+      }> = [];
+      let hasError = false;
 
-      // Create execution record in LiveBlocks
+      // Create execution record
       addExecutionRecord({
         id: executionId,
         startNodeId,
@@ -446,24 +456,99 @@ export function Flow() {
         results: [],
       });
 
-      const result = await executeFlow(
-        startNodeId,
-        nodes,
-        edges,
-        (nodeId, updates) => {
-          updateNodeData(nodeId, updates);
-        },
-      );
+      const visited = new Set<string>();
 
-      // Update execution record with results in LiveBlocks
+      // Execute a single node and its children
+      async function executeNodeAndChildren(
+        nodeId: string,
+        input: unknown,
+      ): Promise<void> {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+
+        const node = nodes.find((n) => n.id === nodeId);
+        if (!node) return;
+
+        // Mark node as executing (shows orange border)
+        updateNodeData(nodeId, { isExecuting: true, error: undefined });
+
+        // Small delay for visual feedback
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        try {
+          // Execute the node code on the server
+          const response = await fetch("/api/execute", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              roomId: room.id,
+              nodeId,
+              input,
+            }),
+          });
+
+          const data = await response.json();
+
+          if (!response.ok) {
+            throw new Error(data.error || "Execution failed");
+          }
+
+          const { nodeResult, children } = data;
+
+          // Update node with result or error
+          updateNodeData(nodeId, {
+            isExecuting: false,
+            lastResult: nodeResult.result,
+            error: nodeResult.error,
+          });
+
+          results.push(nodeResult);
+
+          if (nodeResult.error) {
+            hasError = true;
+            return;
+          }
+
+          // Update execution record
+          updateExecutionRecord(executionId, {
+            nodesExecuted: results.length,
+            results: [...results],
+          });
+
+          // Execute children nodes sequentially
+          for (const childId of children) {
+            await executeNodeAndChildren(childId, nodeResult.result);
+          }
+        } catch (error) {
+          const errorMessage =
+            error instanceof Error ? error.message : "Unknown error";
+          updateNodeData(nodeId, {
+            isExecuting: false,
+            error: errorMessage,
+          });
+          results.push({
+            nodeId,
+            nodeLabel: node.data.label,
+            error: errorMessage,
+          });
+          hasError = true;
+        }
+      }
+
+      // Start execution
+      await executeNodeAndChildren(startNodeId, undefined);
+
+      // Update final execution record
       updateExecutionRecord(executionId, {
         completedAt: new Date().toISOString(),
-        status: result.success ? "success" : "error",
-        nodesExecuted: result.results.length,
-        results: result.results,
+        status: hasError ? "error" : "success",
+        nodesExecuted: results.length,
+        results,
       });
     },
-    [nodes, edges, updateNodeData, addExecutionRecord, updateExecutionRecord],
+    [nodes, room.id, updateNodeData, addExecutionRecord, updateExecutionRecord],
   );
 
   // Get selected node for editor

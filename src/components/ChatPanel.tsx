@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useRef } from "react";
 import type { ChatMessage, ToolCall } from "../types/ai";
 
@@ -50,7 +52,7 @@ function ToolCallDisplay({ toolCall }: { toolCall: ToolCall }) {
       <span className="text-blue-400 font-mono">{getToolIcon(toolCall.name)}</span>
       <span>{getToolLabel(toolCall.name)}</span>
       {labelValue !== undefined && (
-        <span className="text-zinc-500">"{String(labelValue)}"</span>
+        <span className="text-zinc-500">&quot;{String(labelValue)}&quot;</span>
       )}
       {nodeIdValue !== undefined && (
         <span className="text-zinc-500 font-mono">{String(nodeIdValue)}</span>

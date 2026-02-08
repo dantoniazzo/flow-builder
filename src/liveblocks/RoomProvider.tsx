@@ -1,3 +1,5 @@
+"use client";
+
 import { type ReactNode, useMemo } from "react";
 import { LiveList, LiveMap } from "@liveblocks/client";
 import { RoomProvider as LiveblocksRoomProvider, type LiveNode, type LiveEdge, type LiveExecutionRecord, type LiveChatMessage } from "./liveblocks.config";
@@ -20,6 +22,9 @@ function getRandomColor() {
 
 // Generate a random user ID
 function getUserId() {
+  if (typeof window === "undefined") {
+    return `user-${Math.random().toString(36).slice(2, 9)}`;
+  }
   const stored = sessionStorage.getItem("flow-builder-user-id");
   if (stored) return stored;
   const id = `user-${Math.random().toString(36).slice(2, 9)}`;

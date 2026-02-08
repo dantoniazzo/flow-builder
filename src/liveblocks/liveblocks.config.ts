@@ -1,14 +1,24 @@
-import { createClient, type LiveMap, type LiveList, type JsonObject } from "@liveblocks/client";
+import {
+  createClient,
+  type LiveMap,
+  type LiveList,
+  type JsonObject,
+} from "@liveblocks/client";
 import { createRoomContext } from "@liveblocks/react";
 
 // Create the LiveBlocks client
 // In production, use an auth endpoint. For development, we use a public key.
 const client = createClient({
-  publicApiKey: import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY || "pk_dev_placeholder",
+  publicApiKey:
+    process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY || "pk_dev_placeholder",
 });
-
 // Node icon types
-export type NodeIconType = "code" | "start" | "api-fetch" | "api-post" | "render";
+export type NodeIconType =
+  | "code"
+  | "start"
+  | "api-fetch"
+  | "api-post"
+  | "render";
 
 // JSON-serializable node data for LiveBlocks storage
 export interface LiveNodeData extends JsonObject {
