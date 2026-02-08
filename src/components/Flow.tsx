@@ -7,10 +7,12 @@ import {
   Controls,
   ConnectionMode,
   SelectionMode,
+  MarkerType,
   type NodeTypes,
   type OnNodesChange,
   type OnEdgesChange,
   type Connection,
+  type DefaultEdgeOptions,
   applyNodeChanges,
   applyEdgeChanges,
 } from "@xyflow/react";
@@ -72,6 +74,20 @@ function CodeNodeWrapper(props: {
 
 const nodeTypes: NodeTypes = {
   code: CodeNodeWrapper,
+};
+
+// Default edge options with arrow marker for direction
+const defaultEdgeOptions: DefaultEdgeOptions = {
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    width: 20,
+    height: 20,
+    color: "#71717a", // zinc-500
+  },
+  style: {
+    strokeWidth: 2,
+    stroke: "#71717a", // zinc-500
+  },
 };
 
 export function Flow() {
@@ -221,7 +237,21 @@ export function Flow() {
 
   useEffect(() => {
     if (liveEdges) {
-      setEdges(Array.from(liveEdges) as FlowEdge[]);
+      // Apply arrow markers to all edges for direction indication
+      const edgesWithMarkers = Array.from(liveEdges).map((edge) => ({
+        ...edge,
+        markerEnd: {
+          type: MarkerType.ArrowClosed,
+          width: 20,
+          height: 20,
+          color: "#71717a",
+        },
+        style: {
+          strokeWidth: 2,
+          stroke: "#71717a",
+        },
+      })) as FlowEdge[];
+      setEdges(edgesWithMarkers);
     }
   }, [liveEdges]);
 
@@ -458,15 +488,31 @@ export function Flow() {
         results: [],
       });
 
-      const visited = new Set<string>();
+      // Track execution count per node to allow circular flows while preventing infinite loops
+      const executionCount = new Map<string, number>();
+      const MAX_EXECUTIONS_PER_NODE = 10; // Prevent infinite loops
+      let totalExecutions = 0;
+      const MAX_TOTAL_EXECUTIONS = 100; // Global limit
 
       // Execute a single node and its children
       async function executeNodeAndChildren(
         nodeId: string,
         input: unknown,
       ): Promise<void> {
-        if (visited.has(nodeId)) return;
-        visited.add(nodeId);
+        // Check global limit
+        if (totalExecutions >= MAX_TOTAL_EXECUTIONS) {
+          console.warn("Max total executions reached, stopping flow");
+          return;
+        }
+
+        // Check per-node limit
+        const nodeExecCount = executionCount.get(nodeId) || 0;
+        if (nodeExecCount >= MAX_EXECUTIONS_PER_NODE) {
+          console.warn(`Node ${nodeId} reached max executions, skipping`);
+          return;
+        }
+        executionCount.set(nodeId, nodeExecCount + 1);
+        totalExecutions++;
 
         const node = nodes.find((n) => n.id === nodeId);
         if (!node) return;
@@ -555,8 +601,12 @@ export function Flow() {
           });
 
           // Execute children nodes sequentially
-          for (const childId of children) {
-            await executeNodeAndChildren(childId, nodeResult.result);
+          // Only continue if the node returned a value (not undefined/null)
+          // This allows nodes to control circular flow by returning undefined to stop
+          if (nodeResult.result !== undefined && nodeResult.result !== null) {
+            for (const childId of children) {
+              await executeNodeAndChildren(childId, nodeResult.result);
+            }
           }
         } catch (error) {
           const errorMessage =
@@ -746,6 +796,7 @@ export function Flow() {
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         nodeTypes={nodeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         colorMode="dark"
         fitView
         deleteKeyCode={["Backspace", "Delete"]}
