@@ -34,9 +34,8 @@ import {
   type LiveNodeData,
   type LiveChatMessage,
   type ExecutionMode,
-  type JsonObject,
 } from "../liveblocks/liveblocks.config";
-import { isStartNode, executeNode } from "../execution/executeFlow";
+import { isStartNode } from "../execution/executeFlow";
 import { useIsMobile } from "../shared/lib/useIsMobile";
 import { useAITools } from "../hooks/useAITools";
 import { AIService } from "../ai/aiService";
@@ -387,255 +386,37 @@ export function Flow() {
     [addEdgeMutation],
   );
 
-  // Execution history mutations
-  const addExecutionRecord = useMutation(
-    (
-      { storage },
-      record: {
-        id: string;
-        startNodeId: string;
-        startNodeLabel: string;
-        startedAt: string;
-        status: "running" | "success" | "error";
-        nodesExecuted: number;
-        results: Array<{
-          nodeId: string;
-          nodeLabel: string;
-          result?: unknown;
-          error?: string;
-        }>;
-      },
-    ) => {
-      const history = storage.get("executionHistory");
-      history.insert(
-        {
-          ...record,
-          results: record.results.map((r) => ({
-            ...r,
-            result:
-              r.result !== undefined
-                ? JSON.parse(JSON.stringify(r.result))
-                : undefined,
-          })),
-        },
-        0,
-      );
-    },
-    [],
-  );
-
-  const updateExecutionRecord = useMutation(
-    (
-      { storage },
-      id: string,
-      updates: {
-        completedAt?: string;
-        status?: "running" | "success" | "error";
-        nodesExecuted?: number;
-        results?: Array<{
-          nodeId: string;
-          nodeLabel: string;
-          result?: unknown;
-          error?: string;
-        }>;
-      },
-    ) => {
-      const history = storage.get("executionHistory");
-      const historyArray = Array.from(history);
-      const index = historyArray.findIndex((e) => e.id === id);
-      if (index !== -1) {
-        const existing = historyArray[index];
-        history.set(index, {
-          ...existing,
-          ...updates,
-          results: updates.results
-            ? updates.results.map((r) => ({
-                ...r,
-                result:
-                  r.result !== undefined
-                    ? JSON.parse(JSON.stringify(r.result))
-                    : undefined,
-              }))
-            : existing.results,
-        });
-      }
-    },
-    [],
-  );
-
   // Execute a flow starting from a specific node
-  // Uses server-side code execution but client-side Liveblocks updates for real-time UI
+  // The entire flow execution happens on the server, including Liveblocks updates
+  // This allows execution to continue even if the browser is closed
   const handleExecuteFlow = useCallback(
     async (startNodeId: string) => {
-      const startNode = nodes.find((n) => n.id === startNodeId);
-      const executionId = `exec-${Date.now()}`;
-      const results: Array<{
-        nodeId: string;
-        nodeLabel: string;
-        result?: unknown;
-        error?: string;
-      }> = [];
-      let hasError = false;
+      try {
+        const response = await fetch("/api/execute-flow", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            roomId: room.id,
+            startNodeId,
+          }),
+        });
 
-      // Create execution record
-      addExecutionRecord({
-        id: executionId,
-        startNodeId,
-        startNodeLabel: startNode?.data.label || startNodeId,
-        startedAt: new Date().toISOString(),
-        status: "running",
-        nodesExecuted: 0,
-        results: [],
-      });
+        const data = await response.json();
 
-      // Track execution count per node to allow circular flows while preventing infinite loops
-      const executionCount = new Map<string, number>();
-      const MAX_EXECUTIONS_PER_NODE = 10; // Prevent infinite loops
-      let totalExecutions = 0;
-      const MAX_TOTAL_EXECUTIONS = 100; // Global limit
-
-      // Execute a single node and its children
-      async function executeNodeAndChildren(
-        nodeId: string,
-        input: unknown,
-      ): Promise<void> {
-        // Check global limit
-        if (totalExecutions >= MAX_TOTAL_EXECUTIONS) {
-          console.warn("Max total executions reached, stopping flow");
-          return;
+        if (!response.ok) {
+          console.error("Flow execution failed:", data.error);
+        } else {
+          console.log(
+            `Flow execution completed: ${data.nodesExecuted} nodes executed`,
+          );
         }
-
-        // Check per-node limit
-        const nodeExecCount = executionCount.get(nodeId) || 0;
-        if (nodeExecCount >= MAX_EXECUTIONS_PER_NODE) {
-          console.warn(`Node ${nodeId} reached max executions, skipping`);
-          return;
-        }
-        executionCount.set(nodeId, nodeExecCount + 1);
-        totalExecutions++;
-
-        const node = nodes.find((n) => n.id === nodeId);
-        if (!node) return;
-
-        const executionMode = node.data.executionMode || "server";
-
-        // Mark node as executing (shows orange border)
-        updateNodeData(nodeId, { isExecuting: true, error: undefined });
-
-        // Small delay for visual feedback
-        await new Promise((resolve) => setTimeout(resolve, 300));
-
-        let nodeResult: {
-          result?: JsonObject | string | number | boolean | null;
-          error?: string;
-        } = {};
-        let children: string[] = [];
-
-        try {
-          if (executionMode === "server") {
-            // Execute on server via API
-            const response = await fetch("/api/execute", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                roomId: room.id,
-                nodeId,
-                input,
-              }),
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-              throw new Error(data.error || "Execution failed");
-            }
-
-            nodeResult = data.nodeResult;
-            children = data.children;
-          } else {
-            // Execute in browser (client-side)
-            try {
-              const result = await executeNode(node.data.code, input);
-              const serializedResult =
-                result !== undefined
-                  ? JSON.parse(JSON.stringify(result))
-                  : undefined;
-              nodeResult = { result: serializedResult };
-            } catch (e) {
-              nodeResult = {
-                error: e instanceof Error ? e.message : String(e),
-              };
-            }
-
-            // Get children from edges
-            children = edges
-              .filter((edge) => edge.source === nodeId)
-              .map((edge) => edge.target);
-          }
-
-          // Update node with result or error
-          updateNodeData(nodeId, {
-            isExecuting: false,
-            lastResult: nodeResult.result,
-            error: nodeResult.error,
-          });
-
-          results.push({
-            nodeId,
-            nodeLabel: node.data.label,
-            result: nodeResult.result,
-            error: nodeResult.error,
-          });
-
-          if (nodeResult.error) {
-            hasError = true;
-            return;
-          }
-
-          // Update execution record
-          updateExecutionRecord(executionId, {
-            nodesExecuted: results.length,
-            results: [...results],
-          });
-
-          // Execute children nodes sequentially
-          // Only continue if the node returned a value (not undefined/null)
-          // This allows nodes to control circular flow by returning undefined to stop
-          if (nodeResult.result !== undefined && nodeResult.result !== null) {
-            for (const childId of children) {
-              await executeNodeAndChildren(childId, nodeResult.result);
-            }
-          }
-        } catch (error) {
-          const errorMessage =
-            error instanceof Error ? error.message : "Unknown error";
-          updateNodeData(nodeId, {
-            isExecuting: false,
-            error: errorMessage,
-          });
-          results.push({
-            nodeId,
-            nodeLabel: node.data.label,
-            error: errorMessage,
-          });
-          hasError = true;
-        }
+      } catch (error) {
+        console.error("Flow execution error:", error);
       }
-
-      // Start execution
-      await executeNodeAndChildren(startNodeId, undefined);
-
-      // Update final execution record
-      updateExecutionRecord(executionId, {
-        completedAt: new Date().toISOString(),
-        status: hasError ? "error" : "success",
-        nodesExecuted: results.length,
-        results,
-      });
     },
-    [nodes, room.id, updateNodeData, addExecutionRecord, updateExecutionRecord],
+    [room.id],
   );
 
   // Get selected node for editor
@@ -668,7 +449,7 @@ export function Flow() {
       })),
     [nodes, edges, handleExecuteFlow, handleExecutionModeChange],
   );
-  console.log("Nodes: ", nodesWithFlowProps);
+
   const handleSaveCode = useCallback(
     (code: string) => {
       if (selectedNodeId) {
