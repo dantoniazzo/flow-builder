@@ -2,7 +2,7 @@
 
 import { memo } from "react";
 import { Handle, Position } from "@xyflow/react";
-import type { LiveNodeData, NodeIconType } from "../liveblocks/liveblocks.config";
+import type { LiveNodeData, ExecutionMode } from "../liveblocks/liveblocks.config";
 import { useFlowStore } from "../store/flowStore";
 import { Button } from "./ui/button";
 import { NodeIcon } from "./NodeIcon";
@@ -13,7 +13,7 @@ interface CodeNodeProps {
   selected?: boolean;
   isStartNode: boolean;
   onExecute: () => void;
-  onIconChange?: (icon: NodeIconType) => void;
+  onExecutionModeChange?: (mode: ExecutionMode) => void;
 }
 
 const handleClass =
@@ -25,7 +25,7 @@ function CodeNodeComponent({
   selected,
   isStartNode,
   onExecute,
-  onIconChange,
+  onExecutionModeChange,
 }: CodeNodeProps) {
   const { openEditor } = useFlowStore();
 
@@ -38,8 +38,8 @@ function CodeNodeComponent({
     onExecute();
   };
 
-  const handleIconChange = (icon: NodeIconType) => {
-    onIconChange?.(icon);
+  const handleExecutionModeChange = (mode: ExecutionMode) => {
+    onExecutionModeChange?.(mode);
   };
 
   // Determine border color based on status
@@ -99,8 +99,8 @@ function CodeNodeComponent({
             <span className="w-3.5 h-3.5 border-2 border-transparent border-t-orange-500 rounded-full animate-spin" />
           )}
           <NodeIcon
-            icon={data.icon || "code"}
-            onChange={handleIconChange}
+            executionMode={data.executionMode || "server"}
+            onChange={handleExecutionModeChange}
           />
         </div>
       </div>

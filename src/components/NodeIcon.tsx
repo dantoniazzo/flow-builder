@@ -9,27 +9,27 @@ import {
   DropdownMenuSeparator,
 } from "./ui/dropdown-menu";
 
-export type NodeIconType =
-  | "code"
-  | "start"
-  | "api-fetch"
-  | "api-post"
-  | "render";
+export type ExecutionMode = "server" | "client";
 
 interface NodeIconProps {
-  icon: NodeIconType;
-  onChange: (icon: NodeIconType) => void;
+  executionMode: ExecutionMode;
+  onChange: (mode: ExecutionMode) => void;
 }
 
-const iconOptions: { value: NodeIconType; label: string }[] = [
-  { value: "code", label: "Code" },
-  { value: "start", label: "Start" },
-  { value: "api-fetch", label: "Fetch Data" },
-  { value: "api-post", label: "Post Data" },
-  { value: "render", label: "Render" },
+const modeOptions: { value: ExecutionMode; label: string; description: string }[] = [
+  {
+    value: "server",
+    label: "Server",
+    description: "Runs on Node.js backend",
+  },
+  {
+    value: "client",
+    label: "Browser",
+    description: "Runs in the browser",
+  },
 ];
 
-function IconSvg({ type, size = 14 }: { type: NodeIconType; size?: number }) {
+function ExecutionModeIcon({ mode, size = 14 }: { mode: ExecutionMode; size?: number }) {
   const props = {
     width: size,
     height: size,
@@ -41,77 +41,59 @@ function IconSvg({ type, size = 14 }: { type: NodeIconType; size?: number }) {
     strokeLinejoin: "round" as const,
   };
 
-  switch (type) {
-    case "start":
-      // Play icon
-      return (
-        <svg {...props}>
-          <polygon points="6 3 20 12 6 21 6 3" />
-        </svg>
-      );
-    case "api-fetch":
-      // Download/fetch icon
-      return (
-        <svg {...props}>
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-      );
-    case "api-post":
-      // Upload/post icon
-      return (
-        <svg {...props}>
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
-      );
-    case "render":
-      // Eye/display icon
-      return (
-        <svg {...props}>
-          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-          <circle cx="12" cy="12" r="3" />
-        </svg>
-      );
-    case "code":
-    default:
-      // Code brackets icon
-      return (
-        <svg {...props}>
-          <polyline points="16 18 22 12 16 6" />
-          <polyline points="8 6 2 12 8 18" />
-        </svg>
-      );
+  if (mode === "server") {
+    // Server icon (database/server rack)
+    return (
+      <svg {...props}>
+        <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
+        <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+        <line x1="6" y1="6" x2="6.01" y2="6" />
+        <line x1="6" y1="18" x2="6.01" y2="18" />
+      </svg>
+    );
   }
+
+  // Browser/client icon (globe/browser window)
+  return (
+    <svg {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <line x1="2" y1="12" x2="22" y2="12" />
+      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+    </svg>
+  );
 }
 
-export function NodeIcon({ icon, onChange }: NodeIconProps) {
-  const handleSelect = (e: React.MouseEvent, value: NodeIconType) => {
+export function NodeIcon({ executionMode, onChange }: NodeIconProps) {
+  const handleSelect = (e: React.MouseEvent, value: ExecutionMode) => {
     e.stopPropagation();
     onChange(value);
   };
+
+  const currentOption = modeOptions.find((opt) => opt.value === executionMode);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
         className="p-1 rounded hover:bg-zinc-700 transition-colors text-zinc-400 hover:text-white focus:outline-none"
         onClick={(e) => e.stopPropagation()}
+        title={`Execution: ${currentOption?.label}`}
       >
-        <IconSvg type={icon} />
+        <ExecutionModeIcon mode={executionMode} />
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-[140px]">
-        <DropdownMenuLabel>Node Type</DropdownMenuLabel>
+      <DropdownMenuContent align="end" className="min-w-[180px]">
+        <DropdownMenuLabel>Execution Mode</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        {iconOptions.map((option) => (
+        {modeOptions.map((option) => (
           <DropdownMenuItem
             key={option.value}
             onClick={(e) => handleSelect(e, option.value)}
-            className={icon === option.value ? "bg-zinc-800" : ""}
+            className={executionMode === option.value ? "bg-zinc-800" : ""}
           >
-            <IconSvg type={option.value} />
-            <span>{option.label}</span>
+            <ExecutionModeIcon mode={option.value} />
+            <div className="flex flex-col">
+              <span>{option.label}</span>
+              <span className="text-xs text-zinc-500">{option.description}</span>
+            </div>
           </DropdownMenuItem>
         ))}
       </DropdownMenuContent>
@@ -119,5 +101,5 @@ export function NodeIcon({ icon, onChange }: NodeIconProps) {
   );
 }
 
-// Export IconSvg for use elsewhere
-export { IconSvg };
+// Export for use elsewhere
+export { ExecutionModeIcon };

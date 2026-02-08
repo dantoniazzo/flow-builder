@@ -17,11 +17,11 @@ export const AI_TOOLS: Anthropic.Tool[] = [
           description:
             "JavaScript code to execute. Has access to 'input' (data from previous node) and should 'return' data for next node. Can use async/await and fetch().",
         },
-        icon: {
+        executionMode: {
           type: "string",
-          enum: ["code", "start", "api-fetch", "api-post", "render"],
+          enum: ["server", "client"],
           description:
-            "Icon representing the node's purpose. Use 'start' for entry points, 'api-fetch' for GET requests, 'api-post' for POST/PUT requests, 'render' for displaying data, 'code' for general processing.",
+            "Where the node's code should execute. Use 'server' for API calls, database operations, file processing, and sensitive operations. Use 'client' for DOM manipulation, browser APIs, OAuth popups, and UI interactions.",
         },
         position: {
           type: "object",
@@ -38,7 +38,7 @@ export const AI_TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "update_node",
-    description: "Update an existing node's code, label, or icon",
+    description: "Update an existing node's code, label, or execution mode",
     input_schema: {
       type: "object" as const,
       properties: {
@@ -54,11 +54,11 @@ export const AI_TOOLS: Anthropic.Tool[] = [
           type: "string",
           description: "New JavaScript code for the node",
         },
-        icon: {
+        executionMode: {
           type: "string",
-          enum: ["code", "start", "api-fetch", "api-post", "render"],
+          enum: ["server", "client"],
           description:
-            "Icon representing the node's purpose. Use 'start' for entry points, 'api-fetch' for GET requests, 'api-post' for POST/PUT requests, 'render' for displaying data, 'code' for general processing.",
+            "Where the node's code should execute. Use 'server' for API calls, database operations, file processing, and sensitive operations. Use 'client' for DOM manipulation, browser APIs, OAuth popups, and UI interactions.",
         },
       },
       required: ["nodeId"],

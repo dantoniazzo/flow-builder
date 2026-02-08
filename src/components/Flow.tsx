@@ -31,9 +31,10 @@ import {
   type LiveNode,
   type LiveNodeData,
   type LiveChatMessage,
-  type NodeIconType,
+  type ExecutionMode,
+  type JsonObject,
 } from "../liveblocks/liveblocks.config";
-import { isStartNode } from "../execution/executeFlow";
+import { isStartNode, executeNode } from "../execution/executeFlow";
 import { useIsMobile } from "../shared/lib/useIsMobile";
 import { useAITools } from "../hooks/useAITools";
 import { AIService } from "../ai/aiService";
@@ -48,12 +49,13 @@ function CodeNodeWrapper(props: {
     __flowProps?: {
       edges: FlowEdge[];
       onExecute: (id: string) => void;
-      onIconChange: (id: string, icon: NodeIconType) => void;
+      onExecutionModeChange: (id: string, mode: ExecutionMode) => void;
     };
   };
   selected?: boolean;
 }) {
-  const { edges, onExecute, onIconChange } = props.data.__flowProps || {};
+  const { edges, onExecute, onExecutionModeChange } =
+    props.data.__flowProps || {};
   const startNode = edges ? isStartNode(props.id, edges) : false;
 
   return (
@@ -63,7 +65,7 @@ function CodeNodeWrapper(props: {
       selected={props.selected}
       isStartNode={startNode}
       onExecute={() => onExecute?.(props.id)}
-      onIconChange={(icon) => onIconChange?.(props.id, icon)}
+      onExecutionModeChange={(mode) => onExecutionModeChange?.(props.id, mode)}
     />
   );
 }
@@ -98,7 +100,7 @@ export function Flow() {
       const chatMessages = storage.get("chatMessages");
       chatMessages.push(message);
     },
-    []
+    [],
   );
 
   // Clear chat messages mutation
@@ -469,33 +471,63 @@ export function Flow() {
         const node = nodes.find((n) => n.id === nodeId);
         if (!node) return;
 
+        const executionMode = node.data.executionMode || "server";
+
         // Mark node as executing (shows orange border)
         updateNodeData(nodeId, { isExecuting: true, error: undefined });
 
         // Small delay for visual feedback
         await new Promise((resolve) => setTimeout(resolve, 300));
 
+        let nodeResult: {
+          result?: JsonObject | string | number | boolean | null;
+          error?: string;
+        } = {};
+        let children: string[] = [];
+
         try {
-          // Execute the node code on the server
-          const response = await fetch("/api/execute", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              roomId: room.id,
-              nodeId,
-              input,
-            }),
-          });
+          if (executionMode === "server") {
+            // Execute on server via API
+            const response = await fetch("/api/execute", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                roomId: room.id,
+                nodeId,
+                input,
+              }),
+            });
 
-          const data = await response.json();
+            const data = await response.json();
 
-          if (!response.ok) {
-            throw new Error(data.error || "Execution failed");
+            if (!response.ok) {
+              throw new Error(data.error || "Execution failed");
+            }
+
+            nodeResult = data.nodeResult;
+            children = data.children;
+          } else {
+            // Execute in browser (client-side)
+            try {
+              const result = await executeNode(node.data.code, input);
+              const serializedResult =
+                result !== undefined
+                  ? JSON.parse(JSON.stringify(result))
+                  : undefined;
+              nodeResult = { result: serializedResult };
+            } catch (e) {
+              nodeResult = {
+                error: e instanceof Error ? e.message : String(e),
+              };
+            }
+
+            // Get children from edges
+            children = edges
+              .filter((edge) => edge.source === nodeId)
+              .map((edge) => edge.target);
           }
-
-          const { nodeResult, children } = data;
 
           // Update node with result or error
           updateNodeData(nodeId, {
@@ -504,7 +536,12 @@ export function Flow() {
             error: nodeResult.error,
           });
 
-          results.push(nodeResult);
+          results.push({
+            nodeId,
+            nodeLabel: node.data.label,
+            result: nodeResult.result,
+            error: nodeResult.error,
+          });
 
           if (nodeResult.error) {
             hasError = true;
@@ -557,10 +594,10 @@ export function Flow() {
     [nodes, selectedNodeId],
   );
 
-  // Handle icon change for a node
-  const handleIconChange = useCallback(
-    (nodeId: string, icon: NodeIconType) => {
-      updateNodeData(nodeId, { icon });
+  // Handle execution mode change for a node
+  const handleExecutionModeChange = useCallback(
+    (nodeId: string, executionMode: ExecutionMode) => {
+      updateNodeData(nodeId, { executionMode });
     },
     [updateNodeData],
   );
@@ -575,13 +612,13 @@ export function Flow() {
           __flowProps: {
             edges,
             onExecute: handleExecuteFlow,
-            onIconChange: handleIconChange,
+            onExecutionModeChange: handleExecutionModeChange,
           },
         },
       })),
-    [nodes, edges, handleExecuteFlow, handleIconChange],
+    [nodes, edges, handleExecuteFlow, handleExecutionModeChange],
   );
-
+  console.log("Nodes: ", nodesWithFlowProps);
   const handleSaveCode = useCallback(
     (code: string) => {
       if (selectedNodeId) {
@@ -640,7 +677,7 @@ export function Flow() {
         const response = await service.chat(
           message,
           workflowContext,
-          executeTool
+          executeTool,
         );
 
         // Add assistant message to LiveBlocks
@@ -648,9 +685,10 @@ export function Flow() {
         const toolCalls = response.toolCalls.map((tc) => ({
           name: tc.name,
           input: JSON.parse(JSON.stringify(tc.input)),
-          result: tc.result !== undefined
-            ? JSON.parse(JSON.stringify(tc.result))
-            : undefined,
+          result:
+            tc.result !== undefined
+              ? JSON.parse(JSON.stringify(tc.result))
+              : undefined,
         }));
 
         const assistantMessage: LiveChatMessage = {
@@ -679,7 +717,16 @@ export function Flow() {
         setLoading(false);
       }
     },
-    [provider, anthropicApiKey, openaiApiKey, addChatMessage, setLoading, getWorkflowContext, executeTool, setPanel]
+    [
+      provider,
+      anthropicApiKey,
+      openaiApiKey,
+      addChatMessage,
+      setLoading,
+      getWorkflowContext,
+      executeTool,
+      setPanel,
+    ],
   );
 
   return (

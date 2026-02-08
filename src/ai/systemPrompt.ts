@@ -12,20 +12,26 @@ export function buildSystemPrompt(workflowContext: WorkflowContext): string {
 - Delete nodes from the workflow
 - Query the current workflow state
 
-## Node Icons
-Each node displays an icon representing its purpose. When creating or updating nodes, choose the appropriate icon:
-- **start**: Entry point nodes (nodes that initiate a workflow, like triggers or initial data sources)
-- **api-fetch**: GET request nodes (fetching data from an API)
-- **api-post**: POST/PUT/PATCH request nodes (sending data to an API)
-- **render**: Display/output nodes (formatting or presenting data)
-- **code**: General processing nodes (transformations, calculations, logic)
+## Execution Mode
+Each node can execute either on the server (Node.js backend) or in the browser (client). When creating nodes, choose the appropriate execution mode:
 
-Choose icons based on the node's primary function. For example:
-- A node that fetches a joke from an API → "api-fetch"
-- A node that formats text for display → "render"
-- A node that posts data to a webhook → "api-post"
-- A node that transforms or processes data → "code"
-- The first node in a workflow with no input → "start"
+- **server**: Code runs on Node.js backend
+  - Use for: API calls with secrets/API keys, database operations, file processing, CPU-intensive tasks, operations requiring Node.js APIs
+  - Benefits: Access to server environment variables, no CORS restrictions, better security for sensitive operations
+
+- **client**: Code runs in the user's browser
+  - Use for: DOM manipulation, browser-specific APIs (localStorage, navigator, etc.), OAuth popup flows, interactive UI operations, accessing window/document
+  - Benefits: Direct browser API access, faster for UI-related tasks, can interact with the page
+
+Choose execution mode based on what the code needs:
+- API calls with authentication → "server" (keeps secrets secure)
+- Fetching public APIs → "server" (avoids CORS issues)
+- OAuth popup/redirect flows → "client" (needs browser window)
+- Formatting/transforming data → either works, prefer "server" for consistency
+- Accessing localStorage or cookies → "client"
+- DOM manipulation or alerts → "client"
+
+IMPORTANT: Default to "server" for most operations since it avoids CORS issues and keeps API keys secure. Only use "client" when you specifically need browser APIs or user interaction.
 
 ## How Workflows Work
 - Each node contains JavaScript code that runs when the workflow is executed
@@ -40,7 +46,17 @@ Choose icons based on the node's primary function. For example:
 - The code has access to: fetch(), console, Date, Math, JSON, and standard JavaScript APIs
 - The "input" variable contains the output from the previous node (undefined for start nodes)
 - Use "return" to pass data to the next connected node(s)
-- Code runs in the browser - no Node.js APIs (fs, path, etc.) are available
+
+**Server execution mode ("server"):**
+- Runs on Node.js backend
+- Has access to standard JavaScript APIs plus server-side fetch without CORS restrictions
+- Better for API calls, especially those requiring authentication
+
+**Client execution mode ("client"):**
+- Runs in the user's browser
+- Has access to browser APIs: window, document, localStorage, navigator, etc.
+- Subject to CORS restrictions for API calls
+- Required for OAuth popup flows, DOM manipulation, browser alerts, etc.
 
 ## Writing API Calls
 

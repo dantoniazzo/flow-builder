@@ -23,7 +23,7 @@ export function useAITools() {
   const addNodeMutation = useMutation(
     (
       { storage },
-      { label, code, icon, position }: CreateNodeInput
+      { label, code, executionMode, position }: CreateNodeInput
     ): { nodeId: string; success: boolean } => {
       const nodesMap = storage.get("nodes");
       const id = `n${Date.now()}`;
@@ -47,7 +47,7 @@ export function useAITools() {
         data: {
           label,
           code,
-          icon: icon || "code",
+          executionMode: executionMode || "server",
         },
         type: "code",
       });
@@ -61,7 +61,7 @@ export function useAITools() {
   const updateNodeMutation = useMutation(
     (
       { storage },
-      { nodeId, label, code, icon }: UpdateNodeInput
+      { nodeId, label, code, executionMode }: UpdateNodeInput
     ): { success: boolean; error?: string } => {
       const nodesMap = storage.get("nodes");
       const node = nodesMap.get(nodeId);
@@ -73,7 +73,7 @@ export function useAITools() {
       const updates: Partial<LiveNodeData> = {};
       if (label !== undefined) updates.label = label;
       if (code !== undefined) updates.code = code;
-      if (icon !== undefined) updates.icon = icon;
+      if (executionMode !== undefined) updates.executionMode = executionMode;
 
       nodesMap.set(nodeId, {
         ...node,
@@ -174,7 +174,7 @@ export function useAITools() {
           id: node.id,
           label: node.data.label,
           code: node.data.code,
-          icon: node.data.icon,
+          executionMode: node.data.executionMode,
           position: node.position,
         });
       });
