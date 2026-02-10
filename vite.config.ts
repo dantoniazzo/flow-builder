@@ -19,11 +19,6 @@ export default defineConfig({
         target: process.env.VITE_API_URL,
         changeOrigin: true,
       },
-      // Proxy OAuth redirects to the backend
-      "/oauth": {
-        target: process.env.VITE_API_URL,
-        changeOrigin: true,
-      },
     },
   },
   define: {
