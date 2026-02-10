@@ -1,6 +1,5 @@
-"use client";
-
 import { useCallback, useMemo, useEffect, useState, useRef } from "react";
+import { API_URL } from "../config";
 import {
   ReactFlow,
   Background,
@@ -35,7 +34,7 @@ import {
   type LiveChatMessage,
   type ExecutionMode,
 } from "../liveblocks/liveblocks.config";
-import { isStartNode } from "../execution/executeFlow";
+import { isStartNode, executeNode } from "../execution/executeFlow";
 import { useIsMobile } from "../shared/lib/useIsMobile";
 import { useAITools } from "../hooks/useAITools";
 import { AIService } from "../ai/aiService";
@@ -254,7 +253,7 @@ export function Flow() {
     }
   }, [liveEdges]);
 
-  // LiveBlocks mutations
+  // LiveBlocks mutations - defined early so they can be used in effects
   const updateNodePosition = useMutation(
     ({ storage }, nodeId: string, position: { x: number; y: number }) => {
       const nodesMap = storage.get("nodes");
@@ -342,6 +341,59 @@ export function Flow() {
     }
   }, []);
 
+  // Track which nodes we're currently executing to prevent duplicate executions
+  const executingClientNodes = useRef<Set<string>>(new Set());
+
+  // Watch for nodes that need client-side execution
+  useEffect(() => {
+    if (!liveNodes) return;
+
+    liveNodes.forEach((node: LiveNode) => {
+      // Check if this node needs client-side execution
+      if (
+        node.data.pendingClientExecution &&
+        !executingClientNodes.current.has(node.id)
+      ) {
+        console.log("Node: ", node);
+        // Mark as executing to prevent duplicate runs
+        executingClientNodes.current.add(node.id);
+
+        // Execute the node code in the browser
+        (async () => {
+          console.log(`Executing client-side node: ${node.data.label}`);
+          let result: unknown;
+          let error: string | undefined;
+
+          try {
+            result = await executeNode(node.data.code, node.data.clientInput);
+            if (result !== undefined) {
+              result = JSON.parse(JSON.stringify(result));
+            }
+          } catch (e) {
+            error = e instanceof Error ? e.message : String(e);
+            console.error(`Client-side execution error:`, e);
+          }
+
+          // Update the node with the result and clear pendingClientExecution
+          // This signals the server to continue the flow
+          updateNodeData(node.id, {
+            isExecuting: false,
+            pendingClientExecution: false,
+            clientInput: undefined,
+            lastResult: result as LiveNodeData["lastResult"],
+            error,
+          });
+
+          executingClientNodes.current.delete(node.id);
+          console.log(`Client-side node completed: ${node.data.label}`, {
+            result,
+            error,
+          });
+        })();
+      }
+    });
+  }, [liveNodes, updateNodeData]);
+
   // Handle node changes (position, selection, deletion)
   const onNodesChange: OnNodesChange = useCallback(
     (changes) => {
@@ -392,7 +444,7 @@ export function Flow() {
   const handleExecuteFlow = useCallback(
     async (startNodeId: string) => {
       try {
-        const response = await fetch("/api/execute-flow", {
+        const response = await fetch(`${API_URL}/api/execute-flow`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -644,11 +696,6 @@ export function Flow() {
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>
         </div>
-        {messages.length > 0 && !isPanelOpen && (
-          <span className="absolute -top-2 -right-2 w-5 h-5 bg-blue-600 text-white text-xs rounded-full flex items-center justify-center z-10">
-            {messages.length > 99 ? "99+" : messages.length}
-          </span>
-        )}
       </div>
 
       {/* Settings button for API key - top right */}

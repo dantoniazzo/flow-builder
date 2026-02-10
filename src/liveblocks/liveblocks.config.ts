@@ -12,7 +12,7 @@ import { createRoomContext } from "@liveblocks/react";
 // In production, use an auth endpoint. For development, we use a public key.
 const client = createClient({
   publicApiKey:
-    process.env.NEXT_PUBLIC_LIVEBLOCKS_PUBLIC_KEY || "pk_dev_placeholder",
+    import.meta.env.VITE_LIVEBLOCKS_PUBLIC_KEY || "pk_dev_placeholder",
 });
 // Execution mode: where the code runs
 export type ExecutionMode = "server" | "client";
@@ -25,6 +25,9 @@ export interface LiveNodeData extends JsonObject {
   lastResult?: JsonObject | string | number | boolean | null;
   isExecuting?: boolean;
   error?: string;
+  // For client-side execution coordination
+  pendingClientExecution?: boolean;
+  clientInput?: JsonObject | string | number | boolean | null;
 }
 
 // Storage node type

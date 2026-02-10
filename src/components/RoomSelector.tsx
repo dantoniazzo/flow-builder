@@ -1,6 +1,5 @@
-"use client";
-
 import { useState, useEffect, useRef, useCallback } from "react";
+import { API_URL } from "../config";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -35,7 +34,7 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
   // Fetch rooms on mount
   const fetchRooms = useCallback(async () => {
     try {
-      const response = await fetch("/api/rooms");
+      const response = await fetch(`${API_URL}/api/rooms`);
       if (response.ok) {
         const data = await response.json();
         setRooms(data.data || []);
@@ -69,7 +68,7 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
     const newRoomName = "Untitled Flow";
 
     try {
-      const response = await fetch("/api/rooms", {
+      const response = await fetch(`${API_URL}/api/rooms`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: newRoomId, name: newRoomName }),
@@ -94,7 +93,7 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
     }
 
     try {
-      const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`, {
+      const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newName.trim() }),
@@ -123,7 +122,7 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
     }
 
     try {
-      const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}`, {
+      const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
         method: "DELETE",
       });
 

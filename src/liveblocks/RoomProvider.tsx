@@ -1,4 +1,4 @@
-"use client";
+
 
 import { type ReactNode, useMemo } from "react";
 import { LiveList, LiveMap } from "@liveblocks/client";
