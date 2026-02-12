@@ -1,13 +1,19 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { API_URL } from "../config";
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { API_URL } from '../config';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   DropdownMenuSeparator,
-} from "./ui/dropdown-menu";
-import { MoreHorizontal, Plus, ChevronDown, Trash2, Pencil } from "lucide-react";
+} from './ui/dropdown-menu';
+import {
+  MoreHorizontal,
+  Plus,
+  ChevronDown,
+  Trash2,
+  Pencil,
+} from 'lucide-react';
 
 interface Room {
   id: string;
@@ -22,11 +28,14 @@ interface RoomSelectorProps {
   onRoomChange: (roomId: string) => void;
 }
 
-export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps) {
+export function RoomSelector({
+  currentRoomId,
+  onRoomChange,
+}: RoomSelectorProps) {
   const [rooms, setRooms] = useState<Room[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
-  const [editingName, setEditingName] = useState("");
+  const [editingName, setEditingName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
   const doubleClickTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -34,13 +43,17 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
   // Fetch rooms on mount
   const fetchRooms = useCallback(async () => {
     try {
-      const response = await fetch(`${API_URL}/api/rooms`);
+      const response = await fetch(`${API_URL}/api/rooms`, {
+        headers: {
+          'ngrok-skip-browser-warning': 'true',
+        },
+      });
       if (response.ok) {
         const data = await response.json();
         setRooms(data.data || []);
       }
     } catch (error) {
-      console.error("Failed to fetch rooms:", error);
+      console.error('Failed to fetch rooms:', error);
     } finally {
       setIsLoading(false);
     }
@@ -65,12 +78,12 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
 
   const createRoom = async () => {
     const newRoomId = `room-${Date.now()}`;
-    const newRoomName = "Untitled Flow";
+    const newRoomName = 'Untitled Flow';
 
     try {
       const response = await fetch(`${API_URL}/api/rooms`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: newRoomId, name: newRoomName }),
       });
 
@@ -82,7 +95,7 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
         setEditingName(newRoomName);
       }
     } catch (error) {
-      console.error("Failed to create room:", error);
+      console.error('Failed to create room:', error);
     }
   };
 
@@ -93,23 +106,29 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: newName.trim() }),
-      });
+      const response = await fetch(
+        `${API_URL}/api/rooms/${encodeURIComponent(roomId)}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: newName.trim() }),
+        },
+      );
 
       if (response.ok) {
         setRooms((prev) =>
           prev.map((room) =>
             room.id === roomId
-              ? { ...room, metadata: { ...room.metadata, name: newName.trim() } }
-              : room
-          )
+              ? {
+                  ...room,
+                  metadata: { ...room.metadata, name: newName.trim() },
+                }
+              : room,
+          ),
         );
       }
     } catch (error) {
-      console.error("Failed to rename room:", error);
+      console.error('Failed to rename room:', error);
     } finally {
       setEditingRoomId(null);
     }
@@ -117,14 +136,17 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
 
   const deleteRoom = async (roomId: string) => {
     if (rooms.length <= 1) {
-      alert("Cannot delete the last room");
+      alert('Cannot delete the last room');
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/api/rooms/${encodeURIComponent(roomId)}`, {
-        method: "DELETE",
-      });
+      const response = await fetch(
+        `${API_URL}/api/rooms/${encodeURIComponent(roomId)}`,
+        {
+          method: 'DELETE',
+        },
+      );
 
       if (response.ok) {
         setRooms((prev) => prev.filter((room) => room.id !== roomId));
@@ -137,7 +159,7 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
         }
       }
     } catch (error) {
-      console.error("Failed to delete room:", error);
+      console.error('Failed to delete room:', error);
     }
   };
 
@@ -170,9 +192,9 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
   };
 
   const handleKeyDown = (e: React.KeyboardEvent, roomId: string) => {
-    if (e.key === "Enter") {
+    if (e.key === 'Enter') {
       renameRoom(roomId, editingName);
-    } else if (e.key === "Escape") {
+    } else if (e.key === 'Escape') {
       setEditingRoomId(null);
     }
   };
@@ -235,8 +257,8 @@ export function RoomSelector({ currentRoomId, onRoomChange }: RoomSelectorProps)
                   key={room.id}
                   className={`group flex items-center gap-2 px-2 py-1.5 mx-1 rounded cursor-pointer transition-colors ${
                     isActive
-                      ? "bg-blue-600/20 text-blue-400"
-                      : "hover:bg-zinc-800 text-zinc-300"
+                      ? 'bg-blue-600/20 text-blue-400'
+                      : 'hover:bg-zinc-800 text-zinc-300'
                   }`}
                   onClick={() => !isEditing && handleRoomClick(room.id)}
                   onDoubleClick={() =>
